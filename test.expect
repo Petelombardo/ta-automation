@@ -1,0 +1,85 @@
+#!/usr/bin/expect -f
+set timeout -1
+spawn ./ta-test
+#send -- "he\n";
+set nomonster 1
+
+proc start_timer { secs } {
+	puts "Starting timer for $secs seconds\n"
+        set then [ clock seconds ]
+        set now $then
+        set diff [expr $now - $then]
+        while {$diff < $secs } {
+                set now [clock seconds];
+                set diff [expr $now - $then]
+        }
+}
+
+proc get_max_health {} {
+        send -- "he\n";
+        expect -re {Mana:.*([0-9]*) / ([0-9]*)} {
+                set response $expect_out(0,string)
+                set mana_max [ exec echo $response | grep "Mana" | cut -d/ -f2 | sed -e "s/^ *//" | sed -e "s/ *$//"]
+                puts "mana_max: $mana_max"
+                set vitality_max [ exec echo $response | grep "Vitality" | cut -d/ -f2 | sed -e "s/^ *//" | sed -e "s/ *$//"]
+		puts "vitality_max: $vitality_max"
+	}
+}
+
+
+proc get_drink {} {
+	send -- "w\nn\nne\n"
+	send -- "b drink"
+	send -- "sw\ns\ne\n"
+}
+
+proc get_meal {} {
+        send -- "w\nn\nne\n"
+        send -- "b drink"
+        send -- "sw\ns\ne\n"
+}
+
+proc check_health {} {
+	send -- "he\n";
+	expect -re {Mana:.*} {
+	        set response $expect_out(0,string)
+		set mana [ exec echo $response | grep "Mana" | cut -d/ -f1 | cut -d: -f2  | sed -e "s/^ *//" | sed -e "s/ *$//"]
+		set vitality [ exec echo $response | grep "Vitality" | cut -d/ -f1 | cut -d: -f2  | sed -e "s/^ *//" | sed -e "s/ *$//"]
+	        puts "mana: $mana\n"
+		puts "vitality: $vitality\n"
+
+	}
+	send -- "he\n";
+	expect -re {Status:.*} {
+               set status [ exec echo $response | grep "Status" | cut -d: -f2  | sed -e "s/^ *//" | sed -e "s/ *$//"]
+		puts "status: $status\n"
+		if { $status == "Thirsty" } { get_drink }
+		if { $status == "Hungry" } { get_meal }
+	}
+}
+
+proc attack { monster nomonster } {
+	send -- "a $monster\n";
+	send -- "a $monster\n";
+	start_timer 2
+	puts "nomonster: $nomonster\n";
+	if { $nomonster == 0 } {
+		attack $monster $nomonster
+	}
+}
+
+proc ring_gong {} {
+	send -- "ri g\n";
+	expect -re {A .* enters the arena} {
+		set response $expect_out(0,string)
+	        set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
+	        puts "\nmonster: $monster"
+		set nomonster 0
+		attack $monster $nomonster
+	}
+}
+
+get_max_health
+check_health
+ring_gong
+expect eof

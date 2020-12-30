@@ -1,0 +1,54 @@
+#!/bin/bash
+
+HEALTH=10
+COUNT=0
+
+function simulation() {
+case $1 in
+l)
+echo "
+You're in the arena.
+Pez2 is here.
+There is nothing on the floor.
+"
+	;;
+he)
+echo "
+Mana:         0 / 8
+Vitality:     72 / 73
+Status:       Healthy
+"
+	;;
+ep)
+echo "
+Level:        4
+Experience:   10305
+Rune:         None"
+	;;
+'ri g')
+echo "You just rang the great gong!
+A kobold enters the arena through the dungeon gate!
+The kobold attacked Pez2 with his knife!"
+	;;
+'a kobold')
+	echo "Your attack hit the kobold for 4 damage!"
+	COUNT=$((COUNT+1))
+	if [ $COUNT -gt $HEALTH ]; then
+echo "The kobold falls to the ground lifeless!
+You found 2 gold crowns while searching the kobold's corpse."
+	fi
+	;;
+w)
+	echo "You're in the north plaza.
+Pez2 is here.
+There is nothing on the floor."
+	;;
+esac
+}
+
+while [ 0 -eq 0 ]
+do
+	read INPUT
+	simulation "$INPUT"
+done
+
