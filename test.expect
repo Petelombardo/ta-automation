@@ -58,24 +58,45 @@ proc check_health {} {
 	}
 }
 
-proc attack { monster nomonster } {
+proc check_attack_response {} {
+	global nomonster
+        expect  {
+		"Your attack" {
+			set nomonster 0;
+		}
+                "lifeless" {
+                        set nomonster 1;
+                }
+                "don't see" {
+                        set nomonster 1;
+                }
+        }
+}
+
+
+proc attack { monster } {
+	global nomonster
 	send -- "a $monster\n";
+	check_attack_response
 	send -- "a $monster\n";
-	start_timer 2
-	puts "nomonster: $nomonster\n";
-	if { $nomonster == 0 } {
-		attack $monster $nomonster
-	}
+	check_attack_response
+#	send -- "c teka $monster\n";
+#	check_attack_response
 }
 
 proc ring_gong {} {
+	global nomonster
 	send -- "ri g\n";
 	expect -re {A .* enters the arena} {
 		set response $expect_out(0,string)
 	        set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
 	        puts "\nmonster: $monster"
 		set nomonster 0
-		attack $monster $nomonster
+		while { $nomonster == 0 } {
+			attack $monster
+			check_health
+			start_timer 2			
+		}
 	}
 }
 

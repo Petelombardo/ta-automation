@@ -2,16 +2,34 @@
 
 HEALTH=10
 COUNT=0
+X=0
+Y=0
+MONSTERPRESENT=0
+
+function  move() {
+	LOCATION="$X,$Y"
+	echo "$LOCATION"
+	if [ "$LOCATION" == "0,0" ]; then
+		echo -e "\e[93mYou're in the temple."
+		echo -e "\e[92mThere is a blue robed priest here."
+	elif [ "$LOCATION" == "1,0" ]; then
+		echo -e "\e[93mYou're in the north plaza."
+		echo -e "\e[95mThere is nobody here."
+	elif [ "$LOCATION" == "2,0" ]; then
+                echo -e "\e[93mYou're in the arena."
+                echo -e "\e[95mThere is nobody here."
+	elif [ "$LOCATION" == "2,1" ]; then
+		echo -e "\e[93mYou're in the tavern."
+		echo -e "\e[92mThere is a barkeep, and a barmaid here."
+	elif [ "$LOCATION" == "1,1" ]; then
+		echo -e "You're in the guild."
+	fi
+	echo -e "\e[96mThere is nothing on the floor.\e[39m"
+}
+
 
 function simulation() {
 case $1 in
-l)
-echo "
-You're in the arena.
-Pez2 is here.
-There is nothing on the floor.
-"
-	;;
 he)
 echo "
 Mana:         0 / 8
@@ -26,22 +44,93 @@ Experience:   10305
 Rune:         None"
 	;;
 'ri g')
-echo "You just rang the great gong!
-A kobold enters the arena through the dungeon gate!
-The kobold attacked Pez2 with his knife!"
+echo -e "\e[93mYou just rang the great gong!
+\e[92mA kobold enters the arena through the dungeon gate!
+\e[91mThe kobold attacked Pez2 with his knife!\e[39m"
+	MONSTERPRESENT=1
+	COUNT=0
 	;;
-'a kobold')
-	echo "Your attack hit the kobold for 4 damage!"
+'a kobold'|'a k')
 	COUNT=$((COUNT+1))
-	if [ $COUNT -gt $HEALTH ]; then
-echo "The kobold falls to the ground lifeless!
-You found 2 gold crowns while searching the kobold's corpse."
+	if [ $COUNT -le $HEALTH ] && [ $MONSTERPRESENT -eq 1 ]; then
+		echo -e "\e[95mYour attack hit the kobold for 4 damage!\e[39m"
+	elif [ $MONSTERPRESENT -eq 1 ]; then
+		echo -e "\e[93mThe kobold falls to the ground lifeless!"
+		echo -e "\e[96mYou found 2 gold crowns while searching the kobold's corpse.\e[39m"
+		MONSTERPRESENT=0
+	else
+		echo -e "\e[35mYou don't see a kobold here.\e[39m"
 	fi
 	;;
 w)
-	echo "You're in the north plaza.
-Pez2 is here.
-There is nothing on the floor."
+	X=$((X-1))
+	if [ $X -lt 0 ]; then
+		X=0;
+	fi
+	move
+	;;
+e)	X=$((X+1))
+	if [ $X -gt 2 ]; then
+		X=2
+	fi
+	move
+	;;
+n)
+	Y=$((Y+1))
+	if [ $Y -gt 2 ]; then
+		Y=2
+	fi
+	move
+	;;
+ne)
+	Y=$((Y+1))
+	X=$((X+1))
+	if [ $Y -gt 2 ]; then
+		Y=2
+	fi
+	if [ $X -gt 2 ]; then
+		X=2
+	fi
+	move
+	;;
+sw)
+	X=$((X-1))
+	Y=$((Y-1))
+	if [ $X -lt 0 ]; then
+		X=0
+	fi
+	if [ $Y -lt 0 ]; then
+		Y=0
+	fi
+	move
+	;;
+s)
+	Y=$((Y-1))
+	if [ $Y -lt 0 ]; then
+		Y=0
+	fi
+	move
+	;;
+
+''|l)
+	move
+	;;
+c)
+	echo "You confuse the key syllables and the spell fails!"
+	;;
+'b drink'|'buy drink')
+	if [ "$X,$Y" == "2,1" ]; then
+		echo -e "\e[96mThe barmaid brings you a drink for 1 crowns.\e[39m"
+	else
+		echo -e "\e[35mThat item is not offered here.\e[39m"
+	fi
+	;;
+'b healing'|'buy healing')
+	if [ "$X,$Y" == "0,0" ]; then
+		echo -e "\e[96mThe priests heal all your wounds for 4 crowns.\e[39m"
+	else
+		echo -e "\e[35mThat item is not offered here.\e[39m"
+	fi
 	;;
 esac
 }
