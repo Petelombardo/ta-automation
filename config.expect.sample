@@ -1,0 +1,5 @@
+set username myuser
+set password mypass
+set heal_spell abracadabra
+set hurt_spell boom
+set attacks_per_round 3

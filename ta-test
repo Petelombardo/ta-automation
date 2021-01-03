@@ -5,10 +5,13 @@ COUNT=0
 X=0
 Y=0
 MONSTERPRESENT=0
+FIRSTRUN=1
+VITALITY=72
+telnet_prompt=0
 
 function  move() {
 	LOCATION="$X,$Y"
-	echo "$LOCATION"
+#	echo "$LOCATION"; #DEBUG
 	if [ "$LOCATION" == "0,0" ]; then
 		echo -e "\e[93mYou're in the temple."
 		echo -e "\e[92mThere is a blue robed priest here."
@@ -33,7 +36,7 @@ case $1 in
 he)
 echo "
 Mana:         0 / 8
-Vitality:     72 / 73
+Vitality:     $VITALITY / 73
 Status:       Healthy
 "
 	;;
@@ -47,8 +50,10 @@ Rune:         None"
 echo -e "\e[93mYou just rang the great gong!
 \e[92mA kobold enters the arena through the dungeon gate!
 \e[91mThe kobold attacked Pez2 with his knife!\e[39m"
+	VITALITY=$((VITALITY-10))
 	MONSTERPRESENT=1
 	COUNT=0
+	FIRSTRUN=1
 	;;
 'a kobold'|'a k')
 	COUNT=$((COUNT+1))
@@ -58,6 +63,9 @@ echo -e "\e[93mYou just rang the great gong!
 		echo -e "\e[93mThe kobold falls to the ground lifeless!"
 		echo -e "\e[96mYou found 2 gold crowns while searching the kobold's corpse.\e[39m"
 		MONSTERPRESENT=0
+	elif [ $FIRSTRUN -eq 1 ]; then
+		echo -e "\e[35mYou are still physically exhausted from your previous activities!\e[39m"
+		FIRSTRUN=0
 	else
 		echo -e "\e[35mYou don't see a kobold here.\e[39m"
 	fi
@@ -128,8 +136,18 @@ c)
 'b healing'|'buy healing')
 	if [ "$X,$Y" == "0,0" ]; then
 		echo -e "\e[96mThe priests heal all your wounds for 4 crowns.\e[39m"
+		VITALITY=73
 	else
 		echo -e "\e[35mThat item is not offered here.\e[39m"
+	fi
+	;;
+^])
+	echo "telnet>"
+	telnet_prompt=1
+	;;
+q)
+	if [ $telnet_prompt_last -eq 1 ]; then
+		exit
 	fi
 	;;
 esac
@@ -139,5 +157,6 @@ while [ 0 -eq 0 ]
 do
 	read INPUT
 	simulation "$INPUT"
+	telnet_prompt_last=$telnet_prompt
 done
 
