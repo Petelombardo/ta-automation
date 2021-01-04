@@ -8,6 +8,7 @@ MONSTERPRESENT=0
 FIRSTRUN=1
 VITALITY=72
 telnet_prompt=0
+STATUS=Healthy
 
 function  move() {
 	LOCATION="$X,$Y"
@@ -37,7 +38,7 @@ he)
 echo "
 Mana:         0 / 8
 Vitality:     $VITALITY / 73
-Status:       Healthy
+Status:       $STATUS
 "
 	;;
 ep)
@@ -51,6 +52,7 @@ echo -e "\e[93mYou just rang the great gong!
 \e[92mA kobold enters the arena through the dungeon gate!
 \e[91mThe kobold attacked Pez2 with his knife!\e[39m"
 	VITALITY=$((VITALITY-10))
+	STATUS="Thirsty"
 	MONSTERPRESENT=1
 	COUNT=0
 	FIRSTRUN=1
@@ -129,6 +131,7 @@ c)
 'b drink'|'buy drink')
 	if [ "$X,$Y" == "2,1" ]; then
 		echo -e "\e[96mThe barmaid brings you a drink for 1 crowns.\e[39m"
+		STATUS="Healthy"
 	else
 		echo -e "\e[35mThat item is not offered here.\e[39m"
 	fi

@@ -6,13 +6,33 @@ source config.expect
 
 set nomonster 1
 
+proc start_timer { secs } {
+        puts "Starting timer for $secs seconds\n"
+        set then [ clock seconds ]
+        set now $then
+        set diff [expr $now - $then]
+        while {$diff < $secs } {
+                set now [clock seconds];
+                set diff [expr $now - $then]
+        }
+}
+
+
 proc connect {} {
 	global spawn_id
 	global username
 	global password
 	spawn telnet tdod.org 3000
+	set count 0
 	expect {
-		"User-ID" { send -- "$username\r\n"; exp_continue }
+		"User-ID" {
+			if { $count > 0 } {
+				start_timer 2
+			}
+			send -- "$username\r\n"; 
+			incr count 1; 
+			exp_continue
+		}
 		"password:" { send -- "$password\r\n"; exp_continue }
 		"Press ENTER to continue)" { send -- "\n"; exp_continue }
 		"Multi-User Games" { send -- "\ng\r\n"; exp_continue }
@@ -28,17 +48,6 @@ proc connect_test {} {
 }
 
 
-proc start_timer { secs } {
-	puts "Starting timer for $secs seconds\n"
-        set then [ clock seconds ]
-        set now $then
-        set diff [expr $now - $then]
-        while {$diff < $secs } {
-                set now [clock seconds];
-                set diff [expr $now - $then]
-        }
-}
-
 proc disconnect {} {
 	close
 	exit
@@ -46,11 +55,30 @@ proc disconnect {} {
 
 proc whereami {} {
 	global location
-	send -- "\r\n"
-	expect -re {You\'re in the ([a-z ]*)} {
+	puts "--Getting location\n"
+	send "\r\n"
+	expect -re {You\'re in the ([a-z ]*)\.} {
 		set location $expect_out(1,string)
 	}
-	puts "----$location\n"
+	puts "--Location: $location\n"
+}
+
+proc get_monsters {} {
+	global monster;
+	global nomonster;
+	send "\r\n";
+	expect { 
+		-re {There is (a|an|are) (two |three |four )?([a-z]*)s? here} {
+			set monster $expect_out(3,string);
+			set nomonster 0;
+			puts "Found a $monster!"
+		}
+		"nobody" {
+			set monster ""
+			set nomonster 1;
+		}
+	}
+	puts "Monster:$monster; nomonster:$nomonster\n";
 }
 
 proc travel { from to } {
@@ -63,13 +91,17 @@ proc travel { from to } {
 	if { $from == "tavern" && $to == "arena" } { send -- "sw\r\ne\r\n" }
 	if { $from == "north plaza" && $to == "tavern" } { send -- "ne\r\n" }
 	if { $from == "temple" && $to == "tavern" } { send -- "e\r\nne\r\n" }
-	if { $from == "tavern" && $to == "nort plaza" } { send -- "sw\r\n" }
+	if { $from == "tavern" && $to == "north plaza" } { send -- "sw\r\n" }
+	if { $from == "tavern" && $to == "temple" } { send -- "sw\r\nw\r\n" }
+        if { $from == "magic shop" && $to == "arena" } { send -- "n\r\nn\r\ne\r\n" }
+        if { $from == "arena" && $to == "magic shop" } { send -- "w\r\ns\r\ns\r\n" }
 }
 	
 proc goto { to } {
 	global location
 	whereami
 	travel $location $to
+	if { $location == $to } { return }
 	expect { 
 		"$to" { puts "Made it to $to, continuing." } 
 		"rest a while" {
@@ -88,70 +120,89 @@ proc goto { to } {
 
 
 proc get_max_health {} {
+	global vitality_max
+	global mana_max
         send -- "he\r\n";
-        expect -re {Mana:.*([0-9]*) / ([0-9]*)} {
-                set response $expect_out(0,string)
-                set mana_max [ exec echo $response | grep "Mana" | cut -d/ -f2 | sed -e "s/^ *//" | sed -e "s/ *$//" | sed -e "s/\\n//" ]
-                puts "mana_max: $mana_max"
-                set vitality_max [ exec echo $response | grep "Vitality" | cut -d/ -f2 | sed -e "s/^ *//" | sed -e "s/ *$//" | sed -e "s/\\n//" ]
-		puts "vitality_max: $vitality_max"
+        expect -re {Mana: *[0-9]* */ *([0-9]*).*\nVitality: *[0-9]* */ *([0-9]*)} {
+		set mana_max $expect_out(1,string)
+		set vitality_max $expect_out(2,string)
 	}
+	puts "max vit: $vitality_max; max mana: $mana_max\n";
 }
 
+proc get_health {} {
+	global vitality
+	global mana
+	global status
+        send -- "he\r\n";
+        expect -re {Mana: *([0-9]*) */ *[0-9]*.*\nVitality: *([0-9]*) */ *[0-9]*.*\nStatus: *([A-Za-z]*)} {
+		set mana $expect_out(1,string)
+		set vitality $expect_out(2,string)
+		set status $expect_out(3,string)
+        } 
+	puts "V: $vitality; M: $mana; S: $status\n";
+}
 
 proc get_drink {} {
-	global location
-	whereami
-	set oldlocation $location
 	goto tavern
 	send -- "b drink\r\n"
-	goto $location
 }
 
 proc get_meal {} {
-	global location
-	whereami
-	set oldlocation $location
 	goto tavern
         send -- "b meal\r\n"
-	goto $oldlocation
+}
+
+proc get_healing {} {
+	goto temple
+	send -- "b healing\r\n"
 }
 
 proc check_health {} {
 	global vitality
+	global mana
+	global status
 	global spawn_id
 	global heal_spell
 	global hurt_spell
 	global spell
 	global location
-	send -- "he\r\n";
-	expect -re {Mana:.*} {
-	        set response $expect_out(0,string)
-		set mana [ exec echo $response | grep "Mana" | cut -d/ -f1 | cut -d: -f2  | sed -e "s/^ *//" | sed -e "s/ *$//" | sed -e "s/\\n//" ]
-		set vitality [ exec echo $response | grep "Vitality" | cut -d/ -f1 | cut -d: -f2  | sed -e "s/^ *//" | sed -e "s/ *$//" | sed -e "s/\\n//" ]
-	        #puts "mana: $mana"
-		#puts "vitality: $vitality"
-
+	get_health
+	set count 0
+	set returnto $location
+	while { $status == "Thirsty" || $status == "Hungry" || $vitality < 55 } {
+		if { $count == 0 } {
+			whereami
+			set returnto $location
+			incr count 1
+		}
+		if { $status == "Thirsty" } {
+			get_drink
+			start_timer 5
+		} elseif { $status == "Hungry" } {
+			get_meal
+			start_timer 5
+		} elseif { $vitality < 55 } {
+			get_healing
+			start_timer 5
+		}
+		get_health
 	}
-	send -- "he\r\n";
-	expect -re {Status:.*} {
-               set status [ exec echo $response | grep "Status" | cut -d: -f2  | sed -e "s/^ *//" | sed -e "s/ *$//"]
-		#puts "status: $status"
-		if { $status == "Thirsty" } { get_drink }
-		if { $status == "Hungry" } { get_meal }
-	}
-	if { $vitality > 65 } {
-		set spell $hurt_spell
-	} elseif { $vitality > 50 } {
-		set spell $heal_spell
-	} else {
+	if { $count > 0 } {
 		whereami
-		set oldlocation $location
-		goto temple
-		send -- "b healing\r\n"
-		goto $oldlocation
+		if { $returnto != $location } {
+			goto $returnto
+		}
 	}
+	if { $vitality > 70 } {
+		if { $returnto != $location } { goto $returnto }
+		set spell $hurt_spell
+	} elseif { $vitality > 55 } {
+		if { $returnto != $location } { goto $returnto }
+		set spell $heal_spell
+	} 
 }
+
 
 proc check_attack_response {} {
 	global nomonster
@@ -191,35 +242,45 @@ proc attack { monster } {
 
 proc ring_gong {} {
 	global nomonster
-	send -- "ri g\r\n";
-	expect -re {An? .* enters the arena} {
-		set response $expect_out(0,string)
-	        set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
-	        puts "\nmonster: $monster"
-		set nomonster 0
-		while { $nomonster == 0 } {
-			attack $monster
-			check_health
-			start_timer 15			
+	global monster
+	get_monsters
+	if { $nomonster == 1 } {
+		send -- "ri g\r\n";
+		expect -re {An? .* enters the arena} {
+			set response $expect_out(0,string)
+		        set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
+		        puts "\nmonster: $monster"
+			set nomonster 0
 		}
+	}
+	start_timer 4
+	while { $nomonster == 0 } {
+		attack $monster
+		check_health
+		start_timer 7
+		check_health
+		start_timer 7			
 	}
 }
 
 set send_human {.1 .3 1 .05 2}
 connect
 #connect_test
-goto arena
 start_timer 2
-send -h "\r\n"
-send -h "e\r\n"
 
+whereami
 get_max_health
+puts "Got max health\n"
 check_health
+puts "Checked initial health\n"
+goto arena
 
 while { 0 == 0 } {
 	check_health
 	ring_gong
-	start_timer 10
+	start_timer 5
+	send -- "ep\r\n"
+	send -- "i\r\n"
 	check_health
 	start_timer 10
 }
