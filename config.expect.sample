@@ -3,3 +3,7 @@ set password mypass
 set heal_spell abracadabra
 set hurt_spell boom
 set attacks_per_round 3
+set self_heal_threshold 100
+set temple_heal_threshold 70
+# Setting healtype to anything but heal will cast the heal spell at the monster instead of you
+set healtype heal
