@@ -122,7 +122,7 @@ proc goto { to } {
 	expect { 
 		"$to" { puts "Made it to $to, continuing." } 
 		"rest a while" {
-			start_timer 5
+			start_timer 4
 			whereami
 			travel $location $to
 			exp_continue
@@ -130,7 +130,7 @@ proc goto { to } {
 			whereami
 			travel $location $to
 			exp_continue
-			start_timer 5
+			start_timer 4
 		}
 	}
 }
@@ -281,11 +281,18 @@ proc ring_gong {} {
 	global potion_status
 	if { $nomonster == 1 } {
 		send -- "ri g\r\n";
-		expect -re {An? .* enters the arena} {
-			set response $expect_out(0,string)
-		        set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
-		        puts "\nmonster: $monster"
-			set nomonster 0
+		expect {
+			-re {An? .* enters the arena} {
+				set response $expect_out(0,string)
+				set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
+				puts "\nmonster: $monster"
+				set nomonster 0
+			}
+			"physically exhausted" {
+				start_timer 5
+				send -- "ri g\r\n"
+				exp_continue
+			}
 		}
 	}
 	start_timer 4
