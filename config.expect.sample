@@ -1,9 +1,12 @@
 set username myuser
 set password mypass
+# Set heal_spel to "" if you do not have one.
 set heal_spell abracadabra
+# Set hurt_spell to "" if you do not have one.
 set hurt_spell boom
 set attacks_per_round 3
 set self_heal_threshold 100
 set temple_heal_threshold 70
-# Setting healtype to anything but heal will cast the heal spell at the monster instead of you
+# For healtype...
+# Acolyte: heal, Necrolyte: hurt, ymmv.  If you cast a spell on yourself to heal, type: heal
 set healtype heal
