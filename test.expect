@@ -93,6 +93,10 @@ proc get_monsters {} {
 			set monster ""
 			set nomonster 1;
 		}
+		-re {^([a-zA-z0-9]*) is here} {
+			set monster ""
+			set nomonster 1;
+		}
 	}
 	puts "Monster:$monster; nomonster:$nomonster\n";
 }
@@ -278,6 +282,7 @@ proc ring_gong {} {
 	global nomonster
 	global monster
 	get_monsters
+	global use_rowan
 	global potion_status
 	if { $nomonster == 1 } {
 		send -- "ri g\r\n";
@@ -304,7 +309,7 @@ proc ring_gong {} {
 		start_timer 7			
 		potion_timer check
 	}
-        if { $potion_status == "expired" } {
+        if { $potion_status == "expired" && $use_rowan == 1 } {
                 get_rowan
                 potion_timer start
                 goto arena
