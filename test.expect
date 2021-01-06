@@ -84,7 +84,7 @@ proc get_monsters {} {
 	global nomonster;
 	send "\r\n";
 	expect { 
-		-re {There is (a|an|are) (two |three |four )?([a-z]*)s? ([a-z]*) ?here} {
+		-re {There is (a|an|are) (two |three |four )?([a-z]*)s?[ |,] ([a-z]*)? ?.*here} {
 			set monster $expect_out(3,string);
 			set nomonster 0;
 			puts "Found a $monster!"
@@ -93,7 +93,7 @@ proc get_monsters {} {
 			set monster ""
 			set nomonster 1;
 		}
-		-re {^([a-zA-z0-9]*) is here} {
+		-re {^(.*) is here.} {
 			set monster ""
 			set nomonster 1;
 		}
