@@ -1,0 +1,408 @@
+#!/usr/bin/expect -f
+set timeout -1
+#spawn ./ta-test
+#send -- "he\n";
+source config.expect
+set potion_start 0
+set potion_status "expired"
+set nomonster 1
+set debug false
+
+proc start_timer { secs } {
+        puts "Starting timer for $secs seconds\n"
+        set then [ clock seconds ]
+        set now $then
+        set diff [expr $now - $then]
+        while {$diff < $secs } {
+                set now [clock seconds];
+                set diff [expr $now - $then]
+        }
+}
+
+proc potion_timer { action } {
+	global potion_start
+	global potion_status
+	if { $potion_start == "" } { set potion_start 0 }
+	if { $action == "start" || $action == "restart" } {
+		set potion_start [ clock seconds ]
+		set potion_status "ongoing"		
+	} else {
+		set now [clock seconds]
+		set diff [expr $now - $potion_start]
+		if { $diff > 800 } {
+			set potion_status "expired"
+		}
+	}
+}
+
+proc connect {} {
+	global env
+	global spawn_id
+	global username
+	global password
+	global server
+	global port
+	spawn telnet $server $port
+	set count 0
+	expect {
+		"User-ID" {
+			if { $count > 0 } {
+				start_timer 2
+			}
+			send -- "$username\r\n"; 
+			incr count 1; 
+			exp_continue
+		}
+		"identify" { send -h "$username\r\n"; exp_continue }
+		"access code" { send -h "$password\r\n"; exp_continue }
+		"password:" { send -h "$password\r\n"; exp_continue }
+		"Press ENTER to continue)" { send -h "\n"; exp_continue }
+		"Multi-User Games" { send -h "\ng\r\n"; exp_continue }
+		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "\ng\r\n"; exp_continue }
+		"Trivia Top Ten" { send -- "\n"; exp_continue }
+		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "\n3\r\n"; }
+		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a\r\n"; }
+		"(N)onstop" { send -h "\r\n"; exp_continue }
+		"(C)ontinue" { send -h "\n"; exp_continue }
+	}
+}
+
+proc connect_test {} {
+	global spawn_id
+	spawn ./ta-test
+}
+
+
+proc disconnect {} {
+	close
+	exit
+}
+
+proc whereami {} {
+	global location
+	set location ""
+	puts "--Getting location\n"
+	set count 0
+	send "\r\n"
+	expect -re {You\'re in the ([a-z ]*)\.} {
+		set location $expect_out(1,string)
+	} else {
+		start_timer 1
+		send "\r\n"
+		if { $count < 5 } {
+			exp_continue
+			incr count 1
+		} else {
+			puts "Problem getting your location.  Exiting."
+			close
+		}
+	}
+	puts "--Location: $location\n"
+}
+
+proc get_monsters {} {
+	global monster;
+	global nomonster;
+	puts "Checking for monsters\n";
+	send "\r\n";
+	expect { 
+		-re {There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)? ?.*here} {
+			set monster $expect_out(3,string);
+			set nomonster 0;
+			puts "Found a $monster!"
+		}
+		"nobody" {
+			set monster ""
+			set nomonster 1;
+		}
+		-re {^(.*) is here.} {
+			set monster ""
+			set nomonster 1;
+		}
+	}
+	puts "Monster:$monster; nomonster:$nomonster\n";
+}
+
+proc travel { from to } {
+	global journey
+	array unset journey
+	puts "Heading from $from to $to\n"
+	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
+#	if { $from == "temple" && $to == "arena" } { set to "north plaza" }
+#	if { $from == "temple" && $to == "tavern" } { set to "north plaza" }
+#	if { $from == "tavern" && $to == "temple" } { set to "north plaza" }
+#	if { $from == "arena" && $to == "tavern" } { set to "north plaza" }
+#	if { $from == "arena" && $to == "temple" } { set to "north plaza" }
+#	if { $from == "arena" && $to == "magic shop" } { set to "north plaza" }
+#
+#
+#	if { $from == "arena" && $to == "tavern" } { array set journey { 0 w 1 ne } }
+#	if { $from == "temple" && $to == "arena" } { array set journey { 0 e 1 e } }
+	if { $from == "north plaza" && $to == "tavern" } { array set journey { 0 ne } }
+#	if { $from == "arena" && $to == "temple" } { array set journey { 0 w 1 w } }
+	if { $from == "north plaza" && $to == "arena" } { array set journey { 0 e } }
+	if { $from == "north plaza" && $to == "temple" } { array set journey { 0 w } }
+        if { $from == "north plaza" && $to == "magic shop" } { array set journey { 0 s 1 s } }
+#	if { $from == "tavern" && $to == "arena" } { array set journey { 0 sw 1 e } }
+#	if { $from == "temple" && $to == "tavern" } { array set journey { 0 e 1 ne } }
+	if { $from == "tavern" && $to == "north plaza" } { array set journey { 0 sw } }
+#	if { $from == "tavern" && $to == "temple" } { array set journey { 0 sw 1 w } }
+#        if { $from == "magic shop" && $to == "arena" } { array set journey { 0 n 1 n 2 e } }
+	if { $from == "magic shop" && $to == "north plaza" } { array set journey { 0 n 1 n } }
+#        if { $from == "arena" && $to == "magic shop" } { array set journey { 0 w 1 s 2 s } }
+#        if { $from == "guild hall" && $to == "arena" } { array set journey { 0 s 1 e } }
+#	if { $from == "south tower" && $to == "arena" } { array set journey { 0 n 1 e } }
+	if { $from == "temple" && $to == "north plaza" } { array set journey { 0 e } }
+	if { $from == "arena" && $to == "north plaza" } { array set journey { 0 w } }
+}
+	
+proc goto { to } {
+	global location
+	global journey
+	whereami
+	travel $location $to
+	if { $location == $to } { return }
+	set i 0
+	set size [array size journey]
+	while { $i < $size } {
+		puts "$journey($i)\r\n"
+		send -- "$journey($i)\r\n"
+		expect { 
+			"$to" { puts "Made it to $to, continuing."; incr i 1} 
+			"rest a while" {
+				puts "Going to rest for 4 seconds\n"
+				start_timer 4
+				send -- "$journey($i)\r\n"
+				exp_continue
+			}
+			"you trip and fall" {
+				puts "Oops, guess I tripped.  Will wait a sec before continuing\n"
+				start_timer 1
+				send -- "$journey($i)\r\n"
+				exp_continue
+			}
+			"$to" { puts "Made it to $to, continuing."; incr i 1}
+			"You\'re in" {
+				puts "Waiting a sec before taking a step.\n"
+				start_timer 1
+				incr i 1
+			}
+		}
+		if { $i == $size } {
+			whereami
+			if { $to != $location } {
+				puts "Reached a waypoint.  Heading from $location to $to\n";
+				travel $location $to
+				set i 0
+				set size [array size journey]
+				puts "Starting second leg -- i:$i size:$size\n"
+				unset expect_out(buffer)
+			}
+		}
+	}
+}
+
+
+proc get_max_health {} {
+	global vitality_max
+	global mana_max
+        send -- "he\r\n";
+        expect -re {Mana: *[0-9]* */ *([0-9]*).*\nVitality: *[0-9]* */ *([0-9]*)} {
+		set mana_max $expect_out(1,string)
+		set vitality_max $expect_out(2,string)
+	}
+	puts "max vit: $vitality_max; max mana: $mana_max\n";
+}
+
+proc get_health {} {
+	global vitality
+	global mana
+	global status
+        send -- "he\r\n";
+        expect -re {Mana: *([0-9]*) */ *[0-9]*.*\nVitality: *([0-9]*) */ *[0-9]*.*\nStatus: *([A-Za-z]*)} {
+		set mana $expect_out(1,string)
+		set vitality $expect_out(2,string)
+		set status $expect_out(3,string)
+        } 
+	puts "V: $vitality; M: $mana; S: $status\n";
+}
+
+proc get_drink {} {
+	goto tavern
+	send -- "b drink\r\n"
+}
+
+proc get_meal {} {
+	goto tavern
+        send -- "b meal\r\n"
+}
+
+proc get_healing {} {
+	goto temple
+	send -- "b healing\r\n"
+}
+
+proc get_rowan {} {
+	goto "magic shop"
+	send -- "b rowan\r\n"
+	send -- "drink rowan\r\n"
+}
+
+proc check_health {} {
+	global vitality
+	global mana
+	global status
+	global spawn_id
+	global heal_spell
+	global hurt_spell
+	global spell
+	global location
+	global self_heal_threshold
+	global temple_heal_threshold
+	get_health
+	set count 0
+	set returnto $location
+	while { $status == "Thirsty" || $status == "Hungry" || $vitality < $temple_heal_threshold } {
+		if { $count == 0 } {
+			whereami
+			set returnto $location
+			incr count 1
+		}
+		if { $status == "Thirsty" } {
+			get_drink
+			start_timer 5
+		} elseif { $status == "Hungry" } {
+			get_meal
+			start_timer 5
+		} elseif { $vitality < $temple_heal_threshold } {
+			get_healing
+			start_timer 5
+		}
+		get_health
+	}
+	if { $count > 0 } {
+		whereami
+		if { $returnto != $location } {
+			goto $returnto
+		}
+	}
+	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
+		if { $returnto != $location } { goto $returnto }
+		set spell $hurt_spell
+	} elseif { $vitality > $temple_heal_threshold } {
+		if { $returnto != $location } { goto $returnto }
+		set spell $heal_spell
+	} 
+}
+
+
+proc check_attack_response {} {
+	global nomonster
+        expect  {
+		"Your attack" {
+			set nomonster 0;
+		}
+                "lifeless" {
+                        set nomonster 1;
+                }
+                "don't see" {
+                        set nomonster 1;
+                }
+		"physically exhausted" {
+			set nomonster 0;
+		}
+		"attacked you" {
+			set nomonster 0;
+		}
+		"Sorry, you don't see" {
+			set nomonster 1;
+		}
+        }
+}
+
+
+proc attack { monster } {
+	global nomonster
+	global spell
+	global attacks_per_round
+	global healtype
+	global username
+	if { $healtype == "heal" } {
+		set attackname $username
+	} else {
+		set attackname $monster
+	}
+	for { set i 0} { $i < $attacks_per_round } {incr i 1} {
+		send -- "a $monster\r\n";
+		check_attack_response
+	}
+	if { "$spell" != "" } {
+		send -- "c $spell $attackname\r\n";
+	}
+}
+
+proc ring_gong {} {
+	global nomonster
+	global monster
+	get_monsters
+	global use_rowan
+	global potion_status
+	if { $nomonster == 1 } {
+		send -- "ri g\r\n";
+		expect {
+			-re {An? .* enters the arena} {
+				set response $expect_out(0,string)
+				set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
+				puts "\nmonster: $monster"
+				set nomonster 0
+			}
+			"physically exhausted" {
+				start_timer 5
+				send -- "ri g\r\n"
+				exp_continue
+			}
+		}
+	}
+	start_timer 4
+	while { $nomonster == 0 } {
+		attack $monster
+		check_health
+		start_timer 7
+		check_health
+		start_timer 7			
+		potion_timer check
+	}
+        if { $potion_status == "expired" && $use_rowan == 1 } {
+                get_rowan
+		whereami
+                potion_timer start
+                goto arena
+        }
+}
+
+set send_human {.1 .3 1 .05 2}
+if { $debug == "true" } {
+	connect_test
+} else {
+	connect
+}
+start_timer 2
+
+whereami
+get_max_health
+puts "Got max health\n"
+check_health
+puts "Checked initial health\n"
+goto arena
+
+while { 0 == 0 } {
+	check_health
+	ring_gong
+	start_timer 5
+	send -- "ep\r\n"
+	send -- "i\r\n"
+	check_health
+	start_timer 10
+}
+
+expect eof
