@@ -55,7 +55,8 @@ proc connect {} {
 		}
 		"identify" { send -h "$username\r\n"; exp_continue }
 		"access code" { send -h "$password\r\n"; exp_continue }
-		"password:" { send -h "$password\r\n"; exp_continue }
+		"Login" { send -h "$username\r\n"; exp_continue }
+		"assword" { send -h "$password\r\n"; exp_continue }
 		"Press ENTER to continue)" { send -h "\n"; exp_continue }
 		"Multi-User Games" { send -h "\ng\r\n"; exp_continue }
 		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "\ng\r\n"; exp_continue }
@@ -63,6 +64,7 @@ proc connect {} {
 		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "\n3\r\n"; }
 		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a\r\n"; }
 		"(N)onstop" { send -h "\r\n"; exp_continue }
+		"/GO KEYS" { send -h "/go ta\r\n" }
 		"(C)ontinue" { send -h "\n"; exp_continue }
 	}
 }
