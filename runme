@@ -127,31 +127,16 @@ proc travel { from to } {
 	global journey
 	array unset journey
 	puts "Heading from $from to $to\n"
+	# Make north plaza the waypoint on all journeys
 	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
-#	if { $from == "temple" && $to == "arena" } { set to "north plaza" }
-#	if { $from == "temple" && $to == "tavern" } { set to "north plaza" }
-#	if { $from == "tavern" && $to == "temple" } { set to "north plaza" }
-#	if { $from == "arena" && $to == "tavern" } { set to "north plaza" }
-#	if { $from == "arena" && $to == "temple" } { set to "north plaza" }
-#	if { $from == "arena" && $to == "magic shop" } { set to "north plaza" }
-#
-#
-#	if { $from == "arena" && $to == "tavern" } { array set journey { 0 w 1 ne } }
-#	if { $from == "temple" && $to == "arena" } { array set journey { 0 e 1 e } }
+	# FROM the north plaza
 	if { $from == "north plaza" && $to == "tavern" } { array set journey { 0 ne } }
-#	if { $from == "arena" && $to == "temple" } { array set journey { 0 w 1 w } }
 	if { $from == "north plaza" && $to == "arena" } { array set journey { 0 e } }
 	if { $from == "north plaza" && $to == "temple" } { array set journey { 0 w } }
         if { $from == "north plaza" && $to == "magic shop" } { array set journey { 0 s 1 s } }
-#	if { $from == "tavern" && $to == "arena" } { array set journey { 0 sw 1 e } }
-#	if { $from == "temple" && $to == "tavern" } { array set journey { 0 e 1 ne } }
+	# TO the north plaza
 	if { $from == "tavern" && $to == "north plaza" } { array set journey { 0 sw } }
-#	if { $from == "tavern" && $to == "temple" } { array set journey { 0 sw 1 w } }
-#        if { $from == "magic shop" && $to == "arena" } { array set journey { 0 n 1 n 2 e } }
 	if { $from == "magic shop" && $to == "north plaza" } { array set journey { 0 n 1 n } }
-#        if { $from == "arena" && $to == "magic shop" } { array set journey { 0 w 1 s 2 s } }
-#        if { $from == "guild hall" && $to == "arena" } { array set journey { 0 s 1 e } }
-#	if { $from == "south tower" && $to == "arena" } { array set journey { 0 n 1 e } }
 	if { $from == "temple" && $to == "north plaza" } { array set journey { 0 e } }
 	if { $from == "arena" && $to == "north plaza" } { array set journey { 0 w } }
 }
