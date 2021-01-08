@@ -355,6 +355,7 @@ proc ring_gong {} {
 		start_timer 7
 		check_health
 		start_timer 7			
+		check_health
 		potion_timer check
 	}
         if { $potion_status == "expired" && $use_rowan == 1 } {
