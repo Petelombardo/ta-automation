@@ -157,13 +157,11 @@ proc goto { to } {
 		expect { 
 			"$to" { puts "Made it to $to, continuing."; incr i 1} 
 			"rest a while" {
-				puts "Going to rest for 4 seconds\n"
-				start_timer 4
+				start_timer 2
 				send -- "$journey($i)\r\n"
 				exp_continue
 			}
 			"you trip and fall" {
-				puts "Oops, guess I tripped.  Will wait a sec before continuing\n"
 				start_timer 1
 				send -- "$journey($i)\r\n"
 				exp_continue
