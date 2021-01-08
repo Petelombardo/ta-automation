@@ -172,6 +172,10 @@ proc goto { to } {
 				start_timer 1
 				incr i 1
 			}
+			"cannot leave" {
+				puts "Uh oh.  Need to go attack something first."
+				return 1
+			}
 		}
 		if { $i == $size } {
 			whereami
@@ -320,18 +324,22 @@ proc attack { monster } {
 	} else {
 		set attackname $monster
 	}
+        if { "$spell" != "" } {
+                send -- "c $spell $attackname\r\n";
+        }
 	for { set i 0} { $i < $attacks_per_round } {incr i 1} {
 		send -- "a $monster\r\n";
 		check_attack_response
-	}
-	if { "$spell" != "" } {
-		send -- "c $spell $attackname\r\n";
 	}
 }
 
 proc ring_gong {} {
 	global nomonster
 	global monster
+	global vitality_max
+	global mana_max
+	global mana
+	global vitality
 	get_monsters
 	global use_rowan
 	global potion_status
@@ -351,7 +359,7 @@ proc ring_gong {} {
 			}
 		}
 	}
-	start_timer 4
+	start_timer 5
 	while { $nomonster == 0 } {
 		attack $monster
 		check_health
@@ -360,6 +368,7 @@ proc ring_gong {} {
 		start_timer 7			
 		check_health
 		potion_timer check
+		get_monsters
 	}
         if { $potion_status == "expired" && $use_rowan == 1 } {
                 get_rowan
@@ -387,11 +396,19 @@ goto arena
 while { 0 == 0 } {
 	check_health
 	ring_gong
-	start_timer 5
+	check_health
+	if { $vitality < $vitality_max || $mana < $mana_max } {
+		goto "north plaza"
+		start_timer 15
+		check_health
+		start_timer 15
+	} else {
+		start_timer 5
+	}
 	send -- "ep\r\n"
 	send -- "i\r\n"
-	check_health
-	start_timer 10
+	start_timer 2
+	goto "arena"
 }
 
 expect eof
