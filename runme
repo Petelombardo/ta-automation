@@ -302,6 +302,9 @@ proc check_attack_response {} {
 		"Sorry, you don't see" {
 			set nomonster 1;
 		}
+		"dodged your" {
+			set nomonster 0;
+		}
         }
 }
 
