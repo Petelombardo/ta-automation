@@ -9,6 +9,11 @@ set hurt_spell boom
 set attacks_per_round 3
 set self_heal_threshold 100
 set temple_heal_threshold 70
+set use_rowan 1
+set use_hyssop 0
 # For healtype...
 # Acolyte: heal, Necrolyte: hurt, ymmv.  If you cast a spell on yourself to heal, type: heal
 set healtype heal
+# Do you want it to periodically attack the mino?
+set attack_mino 1
+

@@ -7,6 +7,11 @@ set potion_start 0
 set potion_status "expired"
 set nomonster 1
 set debug false
+set mino_elapsed 0
+set mino_time 0
+set lastdestination ""
+array set universal_timer {}
+array set universal_timer_elapsed {}
 
 proc start_timer { secs } {
         puts "Starting timer for $secs seconds\n"
@@ -33,6 +38,28 @@ proc potion_timer { action } {
 			set potion_status "expired"
 		}
 	}
+}
+
+proc timer { type sec } {
+	global universal_timer
+	global universal_timer_elapsed
+	set universal_timer($type) $sec
+	set now [ clock seconds ]
+	if {![info exists universal_timer_elapsed($type)]} {
+		set universal_timer_elapsed($type) $now
+		return 0
+	} else {
+		set then $universal_timer_elapsed($type)
+		set now [ clock seconds ]
+		set elapsed [ expr $now - $then ]
+		if { $elapsed >= $universal_timer($type) } {
+			set universal_timer_elapsed($type) $now
+			return 1
+		} else {
+			return 0
+		}
+	}
+	return 0
 }
 
 proc connect {} {
@@ -86,8 +113,8 @@ proc whereami {} {
 	puts "--Getting location\n"
 	set count 0
 	send "\r\n"
-	expect -re {You\'re in the ([a-z ]*)\.} {
-		set location $expect_out(1,string)
+	expect -re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\.} {
+		set location $expect_out(4,string)
 	} else {
 		start_timer 1
 		send "\r\n"
@@ -132,21 +159,34 @@ proc travel { from to } {
 	# Make north plaza the waypoint on all journeys
 	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
 	# FROM the north plaza
+	if { $from == "north plaza" && $to == "guild hall" } { array set journey { 0 n } }
 	if { $from == "north plaza" && $to == "tavern" } { array set journey { 0 ne } }
 	if { $from == "north plaza" && $to == "arena" } { array set journey { 0 e } }
 	if { $from == "north plaza" && $to == "temple" } { array set journey { 0 w } }
         if { $from == "north plaza" && $to == "magic shop" } { array set journey { 0 s 1 s } }
+	if { $from == "north plaza" && $to == "minotaur" } { array set journey { 0 e 1 d 2 w 3 w 4 w 5 sw 6 s 7 s } }
+	if { $from == "north plaza" && $to == "large cavern" } { array set journey { 0 e 1 d 2 w 3 w 4 w 5 sw 6 s 7 s } }
+	if { $from == "north plaza" && $to == "dungeon entrance" } { array set journey { 0 e 1 d } }
 	# TO the north plaza
 	if { $from == "tavern" && $to == "north plaza" } { array set journey { 0 sw } }
 	if { $from == "magic shop" && $to == "north plaza" } { array set journey { 0 n 1 n } }
 	if { $from == "temple" && $to == "north plaza" } { array set journey { 0 e } }
 	if { $from == "arena" && $to == "north plaza" } { array set journey { 0 w } }
+	if { $from == "guild hall" && $to == "north plaza" } { array set journey { 0 s } }
+	if { $from == "minotaur" && $to == "north plaza" } { array set journey { 0 n 1 n 2 ne 3 e 4 e 5 e 6 u 7 w } }
+	if { $from == "dungeon entrance" && $to == "north plaza" } { array set journey { 0 u 1 w } }
+	if { $from == "large cavern" && $to == "north plaza" } { array set journey { 0 n 1 n 2 ne 3 e 4 e 5 e 6 u 7 w } }
 }
 	
 proc goto { to } {
 	global location
 	global journey
-	whereami
+	global lastdestination
+	if { $location != "minotaur" } {
+		whereami
+	}
+#	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
+#	set lastdestination $to
 	travel $location $to
 	if { $location == $to } { return }
 	set i 0
@@ -167,7 +207,7 @@ proc goto { to } {
 				exp_continue
 			}
 			"$to" { puts "Made it to $to, continuing."; incr i 1}
-			"You\'re in" {
+			-re {You(\'re| are) in} {
 				puts "Waiting a sec before taking a step.\n"
 				start_timer 1
 				incr i 1
@@ -231,10 +271,18 @@ proc get_healing {} {
 	send -- "b healing\r\n"
 }
 
-proc get_rowan {} {
+proc get_potions {} {
+	global use_rowan
+	global use_hyssop
 	goto "magic shop"
-	send -- "b rowan\r\n"
-	send -- "drink rowan\r\n"
+	if { $use_rowan == 1 } {
+		send -- "b rowan\r\n"
+		send -- "drink rowan\r\n"
+	}
+	if { $use_hyssop == 1 } {
+		send -- "b hyssop\r\n"
+		send -- "drink hyssop\r\n"
+	}
 }
 
 proc check_health {} {
@@ -333,6 +381,30 @@ proc attack { monster } {
 	}
 }
 
+proc fight {} {
+	global monster
+	global nomonster
+	get_monsters
+        while { $nomonster == 0 } {
+                attack $monster
+                check_health
+                start_timer 7
+                check_health
+                start_timer 8
+                check_health
+                get_monsters
+        }
+}
+
+proc fight_minotaur {} {
+	whereami
+	global location
+	set returnto $location
+	goto minotaur
+	fight
+	goto $location
+}
+
 proc ring_gong {} {
 	global nomonster
 	global monster
@@ -365,15 +437,13 @@ proc ring_gong {} {
 		check_health
 		start_timer 7
 		check_health
-		start_timer 7			
+		start_timer 8			
 		check_health
-		potion_timer check
 		get_monsters
 	}
-        if { $potion_status == "expired" && $use_rowan == 1 } {
-                get_rowan
+        if { [timer potions 600] && ( $use_rowan == 1 || $use_hyssop == 1 ) } {
+                get_potions
 		whereami
-                potion_timer start
                 goto arena
         }
 }
@@ -384,8 +454,8 @@ if { $debug == "true" } {
 } else {
 	connect
 }
-start_timer 2
 
+start_timer 2
 whereami
 get_max_health
 puts "Got max health\n"
@@ -393,21 +463,30 @@ check_health
 puts "Checked initial health\n"
 goto arena
 
+# This is the main loop that runs
 while { 0 == 0 } {
+	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
+	source config.expect
 	check_health
+	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 300 ]  && $attack_mino == 1} {
+                goto minotaur
+		fight
+		set location "minotaur"
+                goto arena
+        }
 	ring_gong
 	check_health
 	if { $vitality < $vitality_max || $mana < $mana_max } {
 		goto "north plaza"
-		start_timer 15
+		send -- "ep\r\n"
+                send -- "i\r\n"
+                puts "\n"
+		start_timer 18
 		check_health
-		start_timer 15
+		start_timer 18
 	} else {
 		start_timer 5
 	}
-	send -- "ep\r\n"
-	send -- "i\r\n"
-	start_timer 2
 	goto "arena"
 }
 
