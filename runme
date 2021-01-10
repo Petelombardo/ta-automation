@@ -13,6 +13,10 @@ set mino_time 0
 set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
+array set learned_travel {}
+set x 0
+set y 0
+set z 0
 
 proc start_timer { secs } {
         puts "Starting timer for $secs seconds\n"
@@ -110,6 +114,9 @@ proc disconnect {} {
 
 proc whereami {} {
 	global location
+	global x
+	global y
+	global z
 	set location ""
 	puts "--Getting location\n"
 	set count 0
@@ -127,6 +134,15 @@ proc whereami {} {
 			close
 		}
 	}
+	if { $location == "north plaza" } { set x 0; set y 0; set z 0 }
+	if { $location == "south plaza" } { set x 0; set y -1; set z 0 }
+	if { $location == "magic shop" } { set x 0; set y -2; set z 0 }
+	if { $location == "temple" } { set x -1; set y 0; set z 0 }
+	if { $location == "tavern" } { set x 1; set y 1; set z 0 }
+	if { $location == "arena" } { set x 1; set y 0; set z 0 }
+	if { $location == "guild hall" } { set x 0; set y 1; set z 0 }
+	if { $location == "town vaults" } { set x 0; set y 1; set z -1 }
+	if { $location == "dungeon entrance" } { set x 1; set y 0; set z -1 }
 	puts "--Location: $location\n"
 }
 
@@ -151,35 +167,72 @@ proc get_monsters {} {
         puts "Monster:$monster; nomonster:$nomonster\n";
 }
 
+proc flip_directions { directions } {
+        set directions [lreverse $directions]
+        foreach direction $directions {
+                if { $direction == "e" } { set newdirection "w" }
+                if { $direction == "w" } { set newdirection "e" }
+                if { $direction == "n" } { set newdirection "s" }
+                if { $direction == "s" } { set newdirection "n" }
+                if { $direction == "ne" } { set newdirection "sw" }
+                if { $direction == "se" } { set newdirection "nw" }
+                if { $direction == "nw" } { set newdirection "se" }
+                if { $direction == "sw" } { set newdirection "ne" }
+                lappend newdirections $newdirection
+        }
+        return $newdirections
+}
+
 
 proc travel { from to } {
 	global journey
 	global monster
-	array unset journey
+	global learned_travel
+	global x
+	global y
+	global z
+	set journey [ list {} ]
 	puts "Heading from $from to $to\n"
 	# Make north plaza the waypoint on all journeys
 	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
 	# FROM the north plaza
-	if { $from == "north plaza" && $to == "guild hall" } { array set journey { 0 n } }
-	if { $from == "north plaza" && $to == "tavern" } { array set journey { 0 ne } }
-	if { $from == "north plaza" && $to == "arena" } { array set journey { 0 e } }
-	if { $from == "north plaza" && $to == "temple" } { array set journey { 0 w } }
-        if { $from == "north plaza" && $to == "magic shop" } { array set journey { 0 s 1 s } }
-	if { $from == "north plaza" && $to == "large cavern" && $monster == "minotaur" } { array set journey { 0 e 1 d 2 w 3 w 4 w 5 sw 6 s 7 s } }
-	if { $from == "north plaza" && $to == "dungeon entrance" } { array set journey { 0 e 1 d } }
-	if { $from == "north plaza" && $to == "town vaults" } { array set journey { 0 n 1 d } }
+	if { $from == "north plaza" && $to == "guild hall" } { set journey [ list n ] }
+	if { $from == "north plaza" && $to == "tavern" } { set journey [ list ne ] }
+	if { $from == "north plaza" && $to == "arena" } { set journey [ list e ] }
+	if { $from == "north plaza" && $to == "temple" } { set journey [ list w ] }
+        if { $from == "north plaza" && $to == "magic shop" } { set journey [list s s ] }
+	if { $from == "north plaza" && $to == "large cavern" && $monster == "minotaur" } { set journey [ list e d w w w sw s s ] }
+	if { $from == "north plaza" && $to == "dungeon entrance" } { set journey [ list e d ] }
+	if { $from == "north plaza" && $to == "town vaults" } { set journey [ list n d ] }
 	# TO the north plaza
-	if { $from == "tavern" && $to == "north plaza" } { array set journey { 0 sw } }
-	if { $from == "magic shop" && $to == "north plaza" } { array set journey { 0 n 1 n } }
-	if { $from == "temple" && $to == "north plaza" } { array set journey { 0 e } }
-	if { $from == "arena" && $to == "north plaza" } { array set journey { 0 w } }
-	if { $from == "guild hall" && $to == "north plaza" } { array set journey { 0 s } }
-	if { $from == "minotaur" && $to == "north plaza" } { array set journey { 0 n 1 n 2 ne 3 e 4 e 5 e 6 u 7 w } }
-	if { $from == "dungeon entrance" && $to == "north plaza" } { array set journey { 0 u 1 w } }
-	if { $from == "large cavern" && $to == "north plaza" && $monster == "minotaur" } { array set journey { 0 n 1 n 2 ne 3 e 4 e 5 e 6 u 7 w } }
-	if { $from == "town vaults" && $to == "north plaza" } { array set journey { 0 u 1 s } }
+	if { $from == "tavern" && $to == "north plaza" } { set journey [ list sw ] }
+	if { $from == "magic shop" && $to == "north plaza" } { set journey [ list n n ] }
+	if { $from == "temple" && $to == "north plaza" } { set journey [ list e ] }
+	if { $from == "arena" && $to == "north plaza" } { set journey [ list w ] }
+	if { $from == "guild hall" && $to == "north plaza" } { set journey [ list s ] }
+	if { $from == "minotaur" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
+	if { $from == "dungeon entrance" && $to == "north plaza" } { set journey [ list u w ] }
+	if { $from == "large cavern" && $to == "north plaza" && $monster == "minotaur" } { set journey [ list n n ne e e e u w ] }
+	if { $from == "town vaults" && $to == "north plaza" } { set journey [ u s ] }
+	return $journey
 }
-	
+
+proc update_coordinates { direction } {
+	global x
+	global y
+	global z
+	if { $direction == "e" } { set x [expr $x + 1] }
+	if { $direction == "w" } { set x [expr $x - 1] }
+	if { $direction == "n" } { set y [expr $y + 1] }
+	if { $direction == "s" } { set y [expr $y - 1] }
+	if { $direction == "ne" } { set x [expr $x + 1]; set y [expr $y + 1] }
+	if { $direction == "sw" } { set x [expr $x - 1]; set y [expr $y - 1] }
+	if { $direction == "nw" } { set x [expr $x - 1]; set y [expr $y + 1] }
+	if { $direction == "se" } { set x [expr $x + 1]; set y [expr $y - 1] }
+	if { $direction == "d" } { set z [expr $z - 1] }
+	if { $direction == "u" } { set z [expr $z + 1] }
+}
+
 proc goto { to } {
 	global location
 	global journey
@@ -187,31 +240,52 @@ proc goto { to } {
 	global monster
 	global nomonsters
 	global attacks_per_round
+	global x
+	global y
+	global z
+	global learned_travel
 #	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
 #	set lastdestination $to
+	set start_coordinates "$x-$y-$z"
 	travel $location $to
 	if { $location == $to } { return }
 	set i 0
-	set size [array size journey]
+	set size [llength $journey]
+	set myjourney ""
 	while { $i < $size } {
-		puts "$journey($i)\r\n"
-		send -- "$journey($i)\r\n"
+		set direction [lindex $journey $i]
+		puts $direction
+		send -- "$direction\r\n"
 		expect { 
-			"$to" { puts "Made it to $to, continuing."; incr i 1} 
+			"$to" { 
+				update_coordinates $direction
+				puts "Made it to $to, continuing.";
+				puts "$x,$y,$z\n" 
+				if { $start_coordinates == "0-0-0" } {
+					set myjourney "$myjourney $direction"
+					set learned_travel("$x-$y-$z") $myjourney
+				}
+				incr i 1
+			} 
 			"rest a while" {
 				start_timer 2
-				send -- "$journey($i)\r\n"
+				send -- "$direction\r\n"
 				exp_continue
 			}
 			"you trip and fall" {
 				start_timer 2
-				send -- "$journey($i)\r\n"
+				send -- "$direction\r\n"
 				exp_continue
 			}
 			"$to" { puts "Made it to $to, continuing."; incr i 1}
 			-re {You(\'re| are) in} {
-				puts "Waiting 2 secs before taking a step.\n"
+				update_coordinates $direction
+				puts "$x,$y,$z\n"
 				start_timer 2
+				if { $start_coordinates == "0-0-0" } {
+					set myjourney "$myjourney $direction"
+	                                set learned_travel("$x-$y-$z") $myjourney
+				}
 				incr i 1
 			}
 			"cannot leave" {
@@ -232,12 +306,16 @@ proc goto { to } {
 				puts "Reached a waypoint.  Heading from $location to $to\n";
 				travel $location $to
 				set i 0
-				set size [array size journey]
+				set size [llength $journey]
 				puts "Starting second leg -- i:$i size:$size\n"
 				unset expect_out(buffer)
 			}
 		}
 	}
+	if { [ info exists learned_travel("$x-$y-$z") ] } {
+                set path $learned_travel("$x-$y-$z")
+                puts "Path to destination $path\n"
+        }
 }
 
 
