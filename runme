@@ -97,6 +97,7 @@ proc connect {} {
 		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a\r\n"; }
 		"(N)onstop" { send -h "\r\n"; exp_continue }
 		"/GO KEYS" { send -h "/go ta\r\n" }
+		"H,G,C,L" { send -h "/go ta\r\n" }
 		"(C)ontinue" { send -h "\n"; exp_continue }
 	}
 }
@@ -167,18 +168,20 @@ proc get_monsters {} {
         puts "Monster:$monster; nomonster:$nomonster\n";
 }
 
-proc flip_directions { directions } {
+proc reverse_route { directions } {
         set directions [lreverse $directions]
-        foreach direction $directions {
-                if { $direction == "e" } { set newdirection "w" }
-                if { $direction == "w" } { set newdirection "e" }
-                if { $direction == "n" } { set newdirection "s" }
-                if { $direction == "s" } { set newdirection "n" }
-                if { $direction == "ne" } { set newdirection "sw" }
-                if { $direction == "se" } { set newdirection "nw" }
-                if { $direction == "nw" } { set newdirection "se" }
-                if { $direction == "sw" } { set newdirection "ne" }
-                lappend newdirections $newdirection
+	set newdirections [list {}]
+	set size [llength $directions]
+        for { set i 0 } { $i < $size } { incr i 1 } {
+		set direction [lindex $directions $i]
+                if { $direction == "e" } { lappend newdirections "w" }
+                if { $direction == "w" } { lappend newdirections "e" }
+                if { $direction == "n" } { lappend newdirections "s" }
+                if { $direction == "s" } { lappend newdirections "n" }
+                if { $direction == "ne" } { lappend newdirections "sw" }
+                if { $direction == "se" } { lappend newdirections "nw" }
+                if { $direction == "nw" } { lappend newdirections "se" }
+                if { $direction == "sw" } { lappend newdirections "ne" }
         }
         return $newdirections
 }
@@ -192,6 +195,7 @@ proc travel { from to } {
 	global y
 	global z
 	set journey [ list {} ]
+	set autoroute [ list {} ]
 	puts "Heading from $from to $to\n"
 	# Make north plaza the waypoint on all journeys
 	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
@@ -213,7 +217,22 @@ proc travel { from to } {
 	if { $from == "minotaur" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
 	if { $from == "dungeon entrance" && $to == "north plaza" } { set journey [ list u w ] }
 	if { $from == "large cavern" && $to == "north plaza" && $monster == "minotaur" } { set journey [ list n n ne e e e u w ] }
-	if { $from == "town vaults" && $to == "north plaza" } { set journey [ u s ] }
+	if { $from == "town vaults" && $to == "north plaza" } { set journey [ list u s ] }
+	set mycoordinates [list $x $y $z]
+	if { [ info exists learned_travel($mycoordinates) ] } {
+			set route $learned_travel($mycoordinates)
+			if { $to == "north plaza" } {
+				set autoroute [ reverse_route $route ]
+			} elseif {$from == "north plaza"} {
+				set autoroute $route
+			}
+	}
+	set size [llength $autoroute]
+	if { [info exists autoroute] && [llength $autoroute] > 1  && [llength $journey] == 1} {
+		puts "Overriding route with: $autoroute"
+		set journey $autoroute
+
+	}
 	return $journey
 }
 
@@ -233,9 +252,8 @@ proc update_coordinates { direction } {
 	if { $direction == "u" } { set z [expr $z + 1] }
 }
 
-proc goto { to } {
+proc goto { to {to_coordinates ""} } {
 	global location
-	global journey
 	global lastdestination
 	global monster
 	global nomonsters
@@ -246,12 +264,16 @@ proc goto { to } {
 	global learned_travel
 #	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
 #	set lastdestination $to
-	set start_coordinates "$x-$y-$z"
-	travel $location $to
 	if { $location == $to } { return }
+	set journey [travel $location $to]
+	if { [llength $journey] == 1  && $to_coordinates != ""} {
+		set journey [travel $location $to_coordinates]
+	}
+	set from $location
+	set mycoordinates [list $x $y $z]
 	set i 0
 	set size [llength $journey]
-	set myjourney ""
+	set myjourney [ list {} ]
 	while { $i < $size } {
 		set direction [lindex $journey $i]
 		puts $direction
@@ -260,10 +282,13 @@ proc goto { to } {
 			"$to" { 
 				update_coordinates $direction
 				puts "Made it to $to, continuing.";
-				puts "$x,$y,$z\n" 
-				if { $start_coordinates == "0-0-0" } {
-					set myjourney "$myjourney $direction"
-					set learned_travel("$x-$y-$z") $myjourney
+				set mycoordinates [list $x $y $z]
+				if { $from == "north plaza" } {
+					lappend myjourney $direction
+					if { ! [info exists learned_travel($mycoordinates)] } {
+						set learned_travel($mycoordinates) $myjourney
+						puts "learned_travel($mycoordinates) = $myjourney"
+					}
 				}
 				incr i 1
 			} 
@@ -277,14 +302,21 @@ proc goto { to } {
 				send -- "$direction\r\n"
 				exp_continue
 			}
+			"there\'s no exit" {
+				puts "Something went wrong with navigation."
+				close
+			}
 			"$to" { puts "Made it to $to, continuing."; incr i 1}
 			-re {You(\'re| are) in} {
 				update_coordinates $direction
-				puts "$x,$y,$z\n"
+				set mycoordinates [list $x $y $z]
 				start_timer 2
-				if { $start_coordinates == "0-0-0" } {
-					set myjourney "$myjourney $direction"
-	                                set learned_travel("$x-$y-$z") $myjourney
+				if { $from == "north plaza" } {
+					lappend myjourney $direction
+                                        if { ! [ info exists learned_travel($mycoordinates)] } {
+                                                set learned_travel($mycoordinates) $myjourney
+                                                puts "learned_travel($mycoordinates) = $myjourney"
+                                        }
 				}
 				incr i 1
 			}
@@ -302,20 +334,20 @@ proc goto { to } {
 		}
 		if { $i == $size } {
 			whereami
-			if { $to != $location } {
+			if { $to != $location && $to_coordinates != $mycoordinates} {
 				puts "Reached a waypoint.  Heading from $location to $to\n";
-				travel $location $to
+				if { $location == "north plaza" } {
+					set myjourney [list {}]
+					set from "north plaza"
+				}
+				set journey [travel $location $to]
 				set i 0
 				set size [llength $journey]
-				puts "Starting second leg -- i:$i size:$size\n"
+				puts "Starting second leg -- i:$i size:$size route:$journey\n"
 				unset expect_out(buffer)
 			}
 		}
 	}
-	if { [ info exists learned_travel("$x-$y-$z") ] } {
-                set path $learned_travel("$x-$y-$z")
-                puts "Path to destination $path\n"
-        }
 }
 
 
@@ -407,13 +439,18 @@ proc check_health {} {
 	global location
 	global self_heal_threshold
 	global temple_heal_threshold
+	global x
+	global y
+	global z
 	get_health
 	set count 0
+	set returncoordinates [list $x $y $z]
 	set returnto $location
 	while { $status == "Thirsty" || $status == "Hungry" || $vitality < $temple_heal_threshold } {
 		if { $count == 0 } {
 			whereami
 			set returnto $location
+			set returncoordinates [list $x $y $z]
 			incr count 1
 		}
 		if { $status == "Thirsty" } {
@@ -431,14 +468,14 @@ proc check_health {} {
 	if { $count > 0 } {
 		whereami
 		if { $returnto != $location } {
-			goto $returnto
+			goto $returnto $returncoordinates
 		}
 	}
 	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
-		if { $returnto != $location } { goto $returnto }
+		if { $returnto != $location } { goto $returnto $returncoordinates}
 		set spell $hurt_spell
 	} elseif { $vitality > $temple_heal_threshold } {
-		if { $returnto != $location } { goto $returnto }
+		if { $returnto != $location } { goto $returnto $returncoordinates}
 		set spell $heal_spell
 	} 
 }
