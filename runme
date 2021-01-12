@@ -228,7 +228,7 @@ proc travel { from to } {
 			}
 	}
 	set size [llength $autoroute]
-	if { [info exists autoroute] && [llength $autoroute] > 1  && [llength $journey] == 1} {
+	if { [info exists autoroute] && [llength $autoroute] > 1  && [lindex $autoroute 0] != "" && [llength $journey] == 1} {
 		puts "Overriding route with: $autoroute"
 		set journey $autoroute
 
@@ -256,18 +256,23 @@ proc goto { to {to_coordinates ""} } {
 	global location
 	global lastdestination
 	global monster
-	global nomonsters
+	global nomonster
 	global attacks_per_round
 	global x
 	global y
 	global z
 	global learned_travel
+	set bypass_destination_check 0
 #	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
 #	set lastdestination $to
 	if { $location == $to } { return }
 	set journey [travel $location $to]
-	if { [llength $journey] == 1  && $to_coordinates != ""} {
+	if { [llength $journey] == 1  && $to_coordinates != "" && [lindex $journey 0] == ""} {
 		set journey [travel $location $to_coordinates]
+	}
+	if { [llength $journey] == 1 && [lindex $journey 0] == "" && [llength $to] > 1 && [lindex $to 0] != ""} {
+		set bypass_destination_check 1
+		set journey $to
 	}
 	set from $location
 	set mycoordinates [list $x $y $z]
@@ -320,21 +325,22 @@ proc goto { to {to_coordinates ""} } {
 				}
 				incr i 1
 			}
-			"cannot leave" {
-				puts "Uh oh.  Need to go attack something first."
+			-re {There (is|are) (a|an|two|three|four) } {
+				puts "Let's kick some butt..."
 				get_monsters
-				if { $nomonsters == 0 } {
-					for {set i 0} { $i < $attacks_per_round } { incr i 1 } {
-						send -- "a $monster\r\n"
-						start_timer 5
+				if { $nomonster == 0 } {
+					set remainingjourney [ list {} ]
+					for { set j $i } {$j < $size} { incr j 1 } {
+						lappend remainingjourney [lindex $journey $j]
 					}
+					return $remainingjourney
 				}
 				exp_continue
 			}
 		}
 		if { $i == $size } {
 			whereami
-			if { $to != $location && $to_coordinates != $mycoordinates} {
+			if { $to != $location && $to_coordinates != $mycoordinates && $bypass_destination_check==0} {
 				puts "Reached a waypoint.  Heading from $location to $to\n";
 				if { $location == "north plaza" } {
 					set myjourney [list {}]
@@ -611,8 +617,17 @@ while { 0 == 0 } {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
-                goto "large cavern"
-		fight
+		set continue 1
+		set destination "large cavern"
+		while { $continue == 1 } {
+			set remainingjourney [goto "large cavern"]
+			fight
+			if { [info exists remainingjourney] && [llength $remainingjourney] > 1 && [llist $remainingjourney 0] != ""} {
+				set continue 1
+			} else {
+				set continue 0
+			}
+		}
 		set temple_heal_threshold $old_temple_heal_threshold
                 goto arena
         }
