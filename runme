@@ -153,7 +153,7 @@ proc get_monsters {} {
         puts "Checking for monsters\n";
         send "\r\n";
         expect {
-                -re {There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)? ?.*here} {
+                -re {There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)? ?.*here\.} {
                         set monster $expect_out(3,string);
                         set nomonster 0;
                         puts "Found a $monster!"
@@ -170,7 +170,7 @@ proc get_monsters {} {
 
 proc reverse_route { directions } {
         set directions [lreverse $directions]
-	set newdirections [list {}]
+	set newdirections [list]
 	set size [llength $directions]
         for { set i 0 } { $i < $size } { incr i 1 } {
 		set direction [lindex $directions $i]
@@ -194,8 +194,8 @@ proc travel { from to } {
 	global x
 	global y
 	global z
-	set journey [ list {} ]
-	set autoroute [ list {} ]
+	set journey [list]
+	set autoroute [list]
 	puts "Heading from $from to $to\n"
 	# Make north plaza the waypoint on all journeys
 	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
@@ -216,6 +216,7 @@ proc travel { from to } {
 	if { $from == "guild hall" && $to == "north plaza" } { set journey [ list s ] }
 	if { $from == "minotaur" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
 	if { $from == "dungeon entrance" && $to == "north plaza" } { set journey [ list u w ] }
+	if { $from == "south plaza" && $to == "north plaza" } { set journey [ list n ] }
 	if { $from == "large cavern" && $to == "north plaza" && $monster == "minotaur" } { set journey [ list n n ne e e e u w ] }
 	if { $from == "town vaults" && $to == "north plaza" } { set journey [ list u s ] }
 	set mycoordinates [list $x $y $z]
@@ -228,7 +229,7 @@ proc travel { from to } {
 			}
 	}
 	set size [llength $autoroute]
-	if { [info exists autoroute] && [llength $autoroute] > 1  && [lindex $autoroute 0] != "" && [llength $journey] == 1} {
+	if { $journey=="" && $autoroute != ""} {
 		puts "Overriding route with: $autoroute"
 		set journey $autoroute
 
@@ -265,21 +266,25 @@ proc goto { to {to_coordinates ""} } {
 	set bypass_destination_check 0
 #	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
 #	set lastdestination $to
-	if { $location == $to } { return }
+	whereami
+	if { $location == $to } { return [list]}
 	set journey [travel $location $to]
-	if { [llength $journey] == 1  && $to_coordinates != "" && [lindex $journey 0] == ""} {
+	if {  $journey == [list] && $to_coordinates != ""} {
 		set journey [travel $location $to_coordinates]
 	}
-	if { [llength $journey] == 1 && [lindex $journey 0] == "" && [llength $to] > 1 && [lindex $to 0] != ""} {
+	if { $journey == [list] && $to != [list]} {
 		set bypass_destination_check 1
 		set journey $to
+		set jsize [llength $journey]
+		set to [lindex $jsize]
 	}
 	set from $location
 	set mycoordinates [list $x $y $z]
 	set i 0
 	set size [llength $journey]
-	set myjourney [ list {} ]
-	while { $i < $size } {
+	set myjourney [list]
+	set remainingjourney [list]
+	while { $i <= $size } {
 		set direction [lindex $journey $i]
 		puts $direction
 		send -- "$direction\r\n"
@@ -296,6 +301,7 @@ proc goto { to {to_coordinates ""} } {
 					}
 				}
 				incr i 1
+				return $remainingjourney
 			} 
 			"rest a while" {
 				start_timer 2
@@ -311,7 +317,32 @@ proc goto { to {to_coordinates ""} } {
 				puts "Something went wrong with navigation."
 				close
 			}
-			"$to" { puts "Made it to $to, continuing."; incr i 1}
+			-re {There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
+				if { $mycoordinates != [list 0 0 0] && $mycoordinates != [list -1 0 0] && $mycoordinates != [list 0 1 0] && $mycoordinates != [list 0 1 -1] && $mycoordinates != [list 1 2 0] && $mycoordinates != [list 0 -2 0] } {
+	                                puts "Let's kick some butt..."
+	                                get_monsters
+	                                if { $nomonster == 0 } {
+	                                        set remainingjourney [list]
+	                                        for { set j $i } {$j <= $size} { incr j 1 } {
+	                                                lappend remainingjourney [lindex $journey $j]
+	                                        }
+						lappend remainingjourney "$to"
+						puts "Recalculating route: $remainingjourney"
+	                                        return $remainingjourney
+	                                }
+				}
+				update_coordinates $direction
+				set mycoordinates [list $x $y $z]
+				start_timer 2
+				incr i 1
+				if { $from == "north plaza" } {
+                                        lappend myjourney $direction
+                                        if { ! [ info exists learned_travel($mycoordinates)] } {
+                                                set learned_travel($mycoordinates) $myjourney
+                                                puts "learned_travel($mycoordinates) = $myjourney"
+                                        }
+                                }
+                        }
 			-re {You(\'re| are) in} {
 				update_coordinates $direction
 				set mycoordinates [list $x $y $z]
@@ -325,25 +356,13 @@ proc goto { to {to_coordinates ""} } {
 				}
 				incr i 1
 			}
-			-re {There (is|are) (a|an|two|three|four) } {
-				puts "Let's kick some butt..."
-				get_monsters
-				if { $nomonster == 0 } {
-					set remainingjourney [ list {} ]
-					for { set j $i } {$j < $size} { incr j 1 } {
-						lappend remainingjourney [lindex $journey $j]
-					}
-					return $remainingjourney
-				}
-				exp_continue
-			}
 		}
-		if { $i == $size } {
+		if { $i > $size } {
 			whereami
 			if { $to != $location && $to_coordinates != $mycoordinates && $bypass_destination_check==0} {
 				puts "Reached a waypoint.  Heading from $location to $to\n";
 				if { $location == "north plaza" } {
-					set myjourney [list {}]
+					set myjourney [list]
 					set from "north plaza"
 				}
 				set journey [travel $location $to]
@@ -409,6 +428,7 @@ proc deposit_money {} {
 				set deposit [ expr $gold - 60 ]
 				goto "town vaults"
 				send -- "de $deposit\r\n"
+				whereami
 				goto $returnlocation
 			} elseif { $gold == 0 } {
 				puts "No gold!  Disconnecting.\n"
@@ -559,6 +579,7 @@ proc ring_gong {} {
 	global vitality
 	get_monsters
 	global use_rowan
+	global use_hyssop
 	global potion_status
 	if { $nomonster == 1 } {
 		send -- "ri g\r\n";
@@ -573,6 +594,10 @@ proc ring_gong {} {
 				start_timer 5
 				send -- "ri g\r\n"
 				exp_continue
+			}
+			"not an appropriate command" {
+				puts "Uh oh, something went wrong.  Better disconnect."
+				close
 			}
 		}
 	}
@@ -618,17 +643,27 @@ while { 0 == 0 } {
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
 		set continue 1
+		whereami
+		if { $vitality < 85 } {
+			get_healing
+		}
 		set destination "large cavern"
 		while { $continue == 1 } {
-			set remainingjourney [goto "large cavern"]
+			set remainingjourney [goto $destination]
+			puts "Remaining Journey: $remainingjourney"
 			fight
-			if { [info exists remainingjourney] && [llength $remainingjourney] > 1 && [llist $remainingjourney 0] != ""} {
+			if { [info exists remainingjourney] && $remainingjourney != [list]} {
+				set destination $remainingjourney
+				puts "Continuing with loop"
 				set continue 1
 			} else {
+				puts "Not continuing with loop"
 				set continue 0
 			}
 		}
 		set temple_heal_threshold $old_temple_heal_threshold
+		set monster "minotaur"
+		whereami
                 goto arena
         }
 	ring_gong
