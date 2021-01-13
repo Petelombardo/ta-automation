@@ -328,7 +328,7 @@ proc goto { to {to_coordinates ""} } {
 	                                if { $nomonster == 0 && $i < [expr $size - 1]} {
 						puts "This is not our final destination, but we'll stay and fight anyway"
 	                                        set remainingjourney [list]
-	                                        for { set j $i } {$j <= $size} { incr j 1 } {
+	                                        for { set j [ expr $i + 1 ] } {$j <= $size} { incr j 1 } {
 	                                                lappend remainingjourney [lindex $journey $j]
 	                                        }
 						lappend remainingjourney "$to"
