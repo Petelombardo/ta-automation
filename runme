@@ -17,9 +17,14 @@ array set learned_travel {}
 set x 0
 set y 0
 set z 0
+if { $debug == "true" } {
+	set CR "\n"
+} else {
+	set CR "\r\n"
+}
 
 proc start_timer { secs } {
-        puts "Starting timer for $secs seconds\n"
+        puts "Starting timer for $secs seconds"
         set then [ clock seconds ]
         set now $then
         set diff [expr $now - $then]
@@ -74,6 +79,7 @@ proc connect {} {
 	global password
 	global server
 	global port
+	global CR
 	spawn telnet $server $port
 	set count 0
 	expect {
@@ -81,23 +87,23 @@ proc connect {} {
 			if { $count > 0 } {
 				start_timer 2
 			}
-			send -- "$username\r\n"; 
+			send -- "$username$CR"; 
 			incr count 1; 
 			exp_continue
 		}
-		"identify" { send -h "$username\r\n"; exp_continue }
-		"access code" { send -h "$password\r\n"; exp_continue }
-		"Login" { send -h "$username\r\n"; exp_continue }
-		"assword" { send -h "$password\r\n"; exp_continue }
+		"identify" { send -h "$username$CR"; exp_continue }
+		"access code" { send -h "$password$CR"; exp_continue }
+		"Login" { send -h "$username$CR"; exp_continue }
+		"assword" { send -h "$password$CR"; exp_continue }
 		"Press ENTER to continue)" { send -h "\n"; exp_continue }
-		"Multi-User Games" { send -h "\ng\r\n"; exp_continue }
-		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "\ng\r\n"; exp_continue }
+		"Multi-User Games" { send -h "\ng$CR"; exp_continue }
+		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "\ng$CR"; exp_continue }
 		"Trivia Top Ten" { send -- "\n"; exp_continue }
-		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "\n3\r\n"; }
-		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a\r\n"; }
-		"(N)onstop" { send -h "\r\n"; exp_continue }
-		"/GO KEYS" { send -h "/go ta\r\n" }
-		"H,G,C,L" { send -h "/go ta\r\n" }
+		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "\n3$CR"; }
+		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a$CR"; }
+		"(N)onstop" { send -h "$CR"; exp_continue }
+		"/GO KEYS" { send -h "/go ta$CR" }
+		"H,G,C,L" { send -h "/go ta$CR" }
 		"(C)ontinue" { send -h "\n"; exp_continue }
 	}
 }
@@ -118,17 +124,18 @@ proc whereami {} {
 	global x
 	global y
 	global z
+	global CR
 	set location ""
 	puts "--Coordinates: $x $y $z; Getting location\n"
 	set count 0
-	send "\r\n"
+	send "$CR"
 	expect -re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\.} {
 		if { !($location == [list $x $y $z]) } {
 			set location $expect_out(4,string)
 		}
 	} else {
 		start_timer 1
-		send "\r\n"
+		send "$CR"
 		if { $count < 5 } {
 			exp_continue
 			incr count 1
@@ -153,8 +160,9 @@ proc whereami {} {
 proc get_monsters {} {
         global monster;
         global nomonster;
-        puts "Checking for monsters\n";
-        send "\r\n";
+	global CR
+        puts "Checking for monsters";
+        send "$CR";
         expect {
                 -re {There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)? ?.*here\.} {
                         set monster $expect_out(3,string);
@@ -185,6 +193,8 @@ proc reverse_route { directions } {
                 if { $direction == "se" } { lappend newdirections "nw" }
                 if { $direction == "nw" } { lappend newdirections "se" }
                 if { $direction == "sw" } { lappend newdirections "ne" }
+		if { $direction == "d" } { lappend newdirections "u" }
+		if { $direction == "u" } { lappend newdirections "d" }
         }
         return $newdirections
 }
@@ -275,25 +285,30 @@ proc move { journey } {
 	global y
 	global z
 	global learned_travel
+	global CR
 	
 	if { $journey == [list] } { return }
 	set from [list $x $y $z]
 	set size [llength $journey]
 	set i 0
 
-	while { $i <= $size } {
+	while { $i < $size } {
 		set direction [lindex $journey $i]
-		puts "$direction step $i of $size"
-		send -- "$direction\r\n"
+		if { [info exists learned_travel($from)] } {
+			puts "Learned route: $learned_travel($from)"
+		}
+		set step [expr $i + 1]
+		puts "$direction step $step of $size - route:$journey:"
+		send -- "$direction$CR"
 		expect { 
 			"rest a while" {
 				start_timer 2
-				send -- "$direction\r\n"
+				send -- "$direction$CR"
 				exp_continue
 			}
 			"you trip and fall" {
 				start_timer 2
-				send -- "$direction\r\n"
+				send -- "$direction$CR"
 				exp_continue
 			}
 			"there\'s no exit" {
@@ -303,7 +318,6 @@ proc move { journey } {
 			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
 				update_coordinates $direction
 				set mycoordinates [list $x $y $z]
-                                incr i 1
                                 if { $from == [list 0 0 0] } {
                                         lappend myjourney $direction
                                         if { ! [ info exists learned_travel($mycoordinates)] } {
@@ -314,10 +328,10 @@ proc move { journey } {
 				if { $mycoordinates != [list 0 0 0] && $mycoordinates != [list -1 0 0] && $mycoordinates != [list 0 1 0] && $mycoordinates != [list 0 1 -1] && $mycoordinates != [list 1 2 0] && $mycoordinates != [list 0 -2 0] } {
 	                                puts "There are monsters here!"
 	                                get_monsters
-	                                if { $nomonster == 0 && $i < $size } {
+	                                if { $nomonster == 0 && [expr $i +1] < $size } {
 						puts "This is not our final destination, but we'll stay and fight anyway"
 	                                        set remainingjourney [list]
-	                                        for { set j $i } {$j < $size} { incr j 1 } {
+	                                        for { set j [expr $i +1] } {$j < $size} { incr j 1 } {
 	                                                lappend remainingjourney [lindex $journey $j]
 	                                        }
 						puts "Recalculating route: $remainingjourney"
@@ -339,9 +353,9 @@ proc move { journey } {
                                                 puts "learned_travel($mycoordinates) = $myjourney"
                                         }
 				}
-				incr i 1
 			}
 		}
+		incr i 1
 	}
 }
 
@@ -368,7 +382,8 @@ proc goto { destination } {
 proc get_max_health {} {
 	global vitality_max
 	global mana_max
-        send -- "he\r\n";
+	global CR
+        send -- "he$CR";
         expect -re {Mana: *[0-9]* */ *([0-9]*).*\nVitality: *[0-9]* */ *([0-9]*)} {
 		set mana_max $expect_out(1,string)
 		set vitality_max $expect_out(2,string)
@@ -380,7 +395,8 @@ proc get_health {} {
 	global vitality
 	global mana
 	global status
-        send -- "he\r\n";
+	global CR
+        send -- "he$CR";
         expect -re {Mana: *([0-9]*) */ *[0-9]*.*\nVitality: *([0-9]*) */ *[0-9]*.*\nStatus: *([A-Za-z]*)} {
 		set mana $expect_out(1,string)
 		set vitality $expect_out(2,string)
@@ -390,23 +406,27 @@ proc get_health {} {
 }
 
 proc get_drink {} {
+	global CR
 	goto "tavern"
-	send -- "b drink\r\n"
+	send -- "b drink$CR"
 }
 
 proc get_meal {} {
+	global CR
 	goto "tavern"
-        send -- "b meal\r\n"
+        send -- "b meal$CR"
 }
 
 proc get_healing {} {
+	global CR
 	goto "temple"
-	send -- "b healing\r\n"
+	send -- "b healing$CR"
 }
 
 proc deposit_money {} {
 	global location
-	send -- "i\r\n"
+	global CR
+	send -- "i$CR"
 	expect {
 		-re {carrying ([0-9]*) gold} {
 			set gold $expect_out(1,string)
@@ -416,7 +436,7 @@ proc deposit_money {} {
 				set returnlocation $location
 				set deposit [ expr $gold - 60 ]
 				goto "town vaults"
-				send -- "de $deposit\r\n"
+				send -- "de $deposit$CR"
 				whereami
 				goto $returnlocation
 			} elseif { $gold == 0 } {
@@ -432,16 +452,17 @@ proc deposit_money {} {
 proc get_potions {} {
 	global use_rowan
 	global use_hyssop
+	global CR
 
 	goto "magic shop"
 
 	if { $use_rowan == 1 } {
-		send -- "b rowan\r\n"
-		send -- "drink rowan\r\n"
+		send -- "b rowan$CR"
+		send -- "drink rowan$CR"
 	}
 	if { $use_hyssop == 1 } {
-		send -- "b hyssop\r\n"
-		send -- "drink hyssop\r\n"
+		send -- "b hyssop$CR"
+		send -- "drink hyssop$CR"
 	}
 }
 
@@ -459,6 +480,7 @@ proc check_health {} {
 	global x
 	global y
 	global z
+	global CR
 	get_health
 	set count 0
 	set returncoordinates [list $x $y $z]
@@ -545,16 +567,17 @@ proc attack { monster } {
 	global attacks_per_round
 	global healtype
 	global username
+	global CR
 	if { $healtype == "heal" } {
 		set attackname $username
 	} else {
 		set attackname $monster
 	}
         if { "$spell" != "" } {
-                send -- "c $spell $attackname\r\n";
+                send -- "c $spell $attackname$CR";
         }
 	for { set i 0} { $i < $attacks_per_round } {incr i 1} {
-		send -- "a $monster\r\n";
+		send -- "a $monster$CR";
 		check_attack_response
 	}
 }
@@ -562,6 +585,7 @@ proc attack { monster } {
 proc fight {} {
 	global monster
 	global nomonster
+	global CR
 	get_monsters
         while { $nomonster == 0 } {
                 attack $monster
@@ -577,18 +601,20 @@ proc fight {} {
 proc wander_to { to } {
 		# This procedure will go to a location and fight creatures on the way
 		global location
+		global CR
 		set continue 1
 		set destination $to
                 while { $continue == 1 } {
                         set remainingjourney [goto $destination]
                         puts "Remaining Journey: $remainingjourney; location:$location to:$to"
                         fight
-                        if { [info exists remainingjourney] && [llength $remainingjourney] > 0} {
+                        if { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney == 0)} {
 				set size [llength $remainingjourney]
 				set to [lindex $remainingjourney $size]
                                 set destination $remainingjourney
                                 puts "Continuing with loop"
 				move $remainingjourney
+				fight
                                 set continue 1
                         } elseif { $location != $to } {
 				set continue 0
@@ -612,8 +638,9 @@ proc ring_gong {} {
 	global use_rowan
 	global use_hyssop
 	global potion_status
+	global CR
 	if { $nomonster == 1 } {
-		send -- "ri g\r\n";
+		send -- "ri g$CR";
 		expect {
 			-re {An? .* enters the arena} {
 				set response $expect_out(0,string)
@@ -623,7 +650,7 @@ proc ring_gong {} {
 			}
 			"physically exhausted" {
 				start_timer 5
-				send -- "ri g\r\n"
+				send -- "ri g$CR"
 				exp_continue
 			}
 			"not an appropriate command" {
@@ -669,7 +696,7 @@ while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
 	check_health
-	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 300 ]  && $attack_mino == 1} {
+	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 120 ]  && $attack_mino == 1} {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
@@ -688,7 +715,7 @@ while { 0 == 0 } {
 	check_health
 	if { $vitality < $vitality_max || $mana < $mana_max } {
 		goto "north plaza"
-		send -- "ep\r\n"
+		send -- "ep$CR"
 		deposit_money
                 puts "\n"
 		start_timer 18

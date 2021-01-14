@@ -4,29 +4,55 @@ HEALTH=10
 COUNT=0
 X=0
 Y=0
+Z=0
 MONSTERPRESENT=0
 FIRSTRUN=1
 VITALITY=72
 telnet_prompt=0
 STATUS=Healthy
+GONG_STATUS=0
 
 function  move() {
-	LOCATION="$X,$Y"
-#	echo "$LOCATION"; #DEBUG
-	if [ "$LOCATION" == "0,0" ]; then
+	LOCATION="$X,$Y,$Z"
+	echo "$LOCATION"; #DEBUG
+	if [ "$LOCATION" == "-1,0,0" ]; then
 		echo -e "\e[93mYou're in the temple."
 		echo -e "\e[92mThere is a blue robed priest here."
-	elif [ "$LOCATION" == "1,0" ]; then
+	elif [ "$LOCATION" == "0,0,0" ]; then
 		echo -e "\e[93mYou're in the north plaza."
 		echo -e "\e[95mThere is nobody here."
-	elif [ "$LOCATION" == "2,0" ]; then
+	elif [ "$LOCATION" == "1,0,0" ]; then
+		if [ $MONSTERPRESENT -eq 1 ] && [ $GONG_STATUS -eq 1 ]; then
+			MONSTER="a kobold"
+		else
+			MONSTER="nobody"
+		fi
                 echo -e "\e[93mYou're in the arena."
-                echo -e "\e[95mThere is nobody here."
-	elif [ "$LOCATION" == "2,1" ]; then
+                echo -e "\e[95mThere is $MONSTER here."
+	elif [ "$LOCATION" == "1,1,0" ]; then
 		echo -e "\e[93mYou're in the tavern."
 		echo -e "\e[92mThere is a barkeep, and a barmaid here."
-	elif [ "$LOCATION" == "1,1" ]; then
+	elif [ "$LOCATION" == "0,1,0" ]; then
 		echo -e "You're in the guild."
+	elif [ "$LOCATION" == "-3,-3,-1" ]; then
+                echo -e "\e[93mYou're in a large cavern."
+		if [ $MONSTERPRESENT -eq 1 ]; then
+			MONSTER="a minotaur"
+		else
+			MONSTER="nobody"
+		fi
+                echo -e "\e[95mThere is $MONSTER here."
+	elif [ "$LOCATION" == "-3,-1,-1" ]; then
+               echo -e "\e[93mYou're in a cave."
+		if [ $MONSTERPRESENT -eq 1 ]; then
+			MONSTER="a troll"
+		else
+			MONSTER="nobody"
+		fi
+               echo -e "\e[95mThere is $MONSTER here."
+	else
+               echo -e "\e[93mYou're in a cave."
+               echo -e "\e[95mThere is nobody here."
 	fi
 	echo -e "\e[96mThere is nothing on the floor.\e[39m"
 }
@@ -56,71 +82,66 @@ echo -e "\e[93mYou just rang the great gong!
 	MONSTERPRESENT=1
 	COUNT=0
 	FIRSTRUN=1
+	GONG_STATUS=1
 	;;
-'a kobold'|'a k')
+'a kobold'|'a k'|'a minotaur'|'a troll')
 	COUNT=$((COUNT+1))
+	MONSTER=$(echo $1 | cut -d' ' -f2)
 	if [ $COUNT -le $HEALTH ] && [ $MONSTERPRESENT -eq 1 ]; then
-		echo -e "\e[95mYour attack hit the kobold for 4 damage!\e[39m"
+		echo -e "\e[95mYour attack hit the $MONSTER for 4 damage!\e[39m"
 	elif [ $MONSTERPRESENT -eq 1 ]; then
-		echo -e "\e[93mThe kobold falls to the ground lifeless!"
-		echo -e "\e[96mYou found 2 gold crowns while searching the kobold's corpse.\e[39m"
+		echo -e "\e[93mThe $MONSTER falls to the ground lifeless!"
+		echo -e "\e[96mYou found 2 gold crowns while searching the $MONSTER's corpse.\e[39m"
 		MONSTERPRESENT=0
+		GONG_STATUS=0
 	elif [ $FIRSTRUN -eq 1 ]; then
 		echo -e "\e[35mYou are still physically exhausted from your previous activities!\e[39m"
 		FIRSTRUN=0
 	else
-		echo -e "\e[35mYou don't see a kobold here.\e[39m"
+		echo -e "\e[35mYou don't see a $MONSTER here.\e[39m"
 	fi
 	;;
 w)
 	X=$((X-1))
-	if [ $X -lt 0 ]; then
-		X=0;
-	fi
+	MONSTERPRESENT=1
 	move
 	;;
 e)	X=$((X+1))
-	if [ $X -gt 2 ]; then
-		X=2
-	fi
+	MONSTERPRESENT=1
 	move
 	;;
 n)
 	Y=$((Y+1))
-	if [ $Y -gt 2 ]; then
-		Y=2
-	fi
+	MONSTERPRESENT=1
 	move
 	;;
 ne)
 	Y=$((Y+1))
 	X=$((X+1))
-	if [ $Y -gt 2 ]; then
-		Y=2
-	fi
-	if [ $X -gt 2 ]; then
-		X=2
-	fi
+	MONSTERPRESENT=1
 	move
 	;;
 sw)
 	X=$((X-1))
 	Y=$((Y-1))
-	if [ $X -lt 0 ]; then
-		X=0
-	fi
-	if [ $Y -lt 0 ]; then
-		Y=0
-	fi
+	MONSTERPRESENT=1
 	move
 	;;
 s)
 	Y=$((Y-1))
-	if [ $Y -lt 0 ]; then
-		Y=0
-	fi
+	MONSTERPRESENT=1
 	move
 	;;
+d)
+        Z=$((Z-1))
+	MONSTERPRESENT=1
+        move
+        ;;
+u)
+        Z=$((Z+1))
+	MONSTERPRESENT=1
+        move
+        ;;
 
 ''|l)
 	move
@@ -129,7 +150,7 @@ c)
 	echo "You confuse the key syllables and the spell fails!"
 	;;
 'b drink'|'buy drink')
-	if [ "$X,$Y" == "2,1" ]; then
+	if [ "$X,$Y,$Z" == "1,1,0" ]; then
 		echo -e "\e[96mThe barmaid brings you a drink for 1 crowns.\e[39m"
 		STATUS="Healthy"
 	else
@@ -137,7 +158,7 @@ c)
 	fi
 	;;
 'b healing'|'buy healing')
-	if [ "$X,$Y" == "0,0" ]; then
+	if [ "$X,$Y,$Z" == "-1,0,0" ]; then
 		echo -e "\e[96mThe priests heal all your wounds for 4 crowns.\e[39m"
 		VITALITY=73
 	else
@@ -153,12 +174,24 @@ q)
 		exit
 	fi
 	;;
+
+ep)
+	echo "Level:        7
+Experience:   102400
+Rune:         None"
+	;;
+i)
+	echo "You are carrying 104 gold crowns, a glowstone, a coil of rope, a dart, an
+anemone potion, a yarrow potion, an anemone potion, a copper key, a hyssop
+potion, a rowan potion, a quiver(20), and a dart."
+	;;
 esac
 }
 
 while [ 0 -eq 0 ]
 do
 	read INPUT
+	sleep 1
 	simulation "$INPUT"
 	telnet_prompt_last=$telnet_prompt
 done
