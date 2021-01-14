@@ -7,7 +7,7 @@ set potion_start 0
 set potion_status "expired"
 set nomonster 1
 set monster ""
-set debug false
+set debug true
 set mino_elapsed 0
 set mino_time 0
 set lastdestination ""
@@ -189,6 +189,7 @@ proc reverse_route { directions } {
         return $newdirections
 }
 
+source destinations.expect
 
 proc travel { from to } {
 	global journey
@@ -264,7 +265,7 @@ proc update_coordinates { direction } {
 	if { $direction == "u" } { set z [expr $z + 1] }
 }
 
-proc goto { to {to_coordinates ""} } {
+proc move { journey } {
 	global location
 	global lastdestination
 	global monster
@@ -274,55 +275,17 @@ proc goto { to {to_coordinates ""} } {
 	global y
 	global z
 	global learned_travel
-	set bypass_destination_check 0
-#	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
-#	set lastdestination $to
-	if { $location != [list $x $y $z] } {
-		whereami
-	}
-	if { $location == $to } { return [list]}
-	set journey [travel $location $to]
-	if {  $journey == [list] && $to_coordinates != ""} {
-		set journey [travel $location $to_coordinates]
-	}
-	if { $journey == [list] && $to != [list]} {
-		set bypass_destination_check 1
-		set journey [list]
-		set jsize [llength $journey]
-		for { set count 0 } { $count < $jsize } { incr count 1 } {
-			if { $count < $jsize } {
-				lappend journey [lindex $to $count]
-			} else {
-				set to [lindex $to $count]
-			}
-		}
-		puts "Destination unset.  Using route $journey with assumed destination $to"
-	}
-	set from $location
-	set mycoordinates [list $x $y $z]
-	set i 0
+	
+	if { $journey == [list] } { return }
+	set from [list $x $y $z]
 	set size [llength $journey]
-	set myjourney [list]
-	set remainingjourney [list]
+	set i 0
+
 	while { $i <= $size } {
 		set direction [lindex $journey $i]
 		puts "$direction step $i of $size"
 		send -- "$direction\r\n"
 		expect { 
-			"$to" { 
-				update_coordinates $direction
-				puts "Made it to $to, continuing.";
-				set mycoordinates [list $x $y $z]
-				if { $from == "north plaza" } {
-					lappend myjourney $direction
-					if { ! [info exists learned_travel($mycoordinates)] } {
-						set learned_travel($mycoordinates) $myjourney
-						puts "learned_travel($mycoordinates) = $myjourney"
-					}
-				}
-				incr i 1
-				return $remainingjourney
-			} 
 			"rest a while" {
 				start_timer 2
 				send -- "$direction\r\n"
@@ -338,11 +301,10 @@ proc goto { to {to_coordinates ""} } {
 				close
 			}
 			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
-				set location $expect_out(4,string)
 				update_coordinates $direction
 				set mycoordinates [list $x $y $z]
                                 incr i 1
-                                if { $from == "north plaza" } {
+                                if { $from == [list 0 0 0] } {
                                         lappend myjourney $direction
                                         if { ! [ info exists learned_travel($mycoordinates)] } {
                                                 set learned_travel($mycoordinates) $myjourney
@@ -358,8 +320,6 @@ proc goto { to {to_coordinates ""} } {
 	                                        for { set j $i } {$j < $size} { incr j 1 } {
 	                                                lappend remainingjourney [lindex $journey $j]
 	                                        }
-						set location [list $x $y $z]
-						lappend remainingjourney "$to"
 						puts "Recalculating route: $remainingjourney"
 	                                        return $remainingjourney
 	                                } else {
@@ -372,7 +332,7 @@ proc goto { to {to_coordinates ""} } {
 				update_coordinates $direction
 				set mycoordinates [list $x $y $z]
 				start_timer 2
-				if { $from == "north plaza" } {
+				if { $from == [list 0 0 0] } {
 					lappend myjourney $direction
                                         if { ! [ info exists learned_travel($mycoordinates)] } {
                                                 set learned_travel($mycoordinates) $myjourney
@@ -382,23 +342,26 @@ proc goto { to {to_coordinates ""} } {
 				incr i 1
 			}
 		}
-		if { $i > $size } {
-			whereami
-			puts "Location:$location to_coordinates:$to_coordinates mycoordinates:$mycoordinates bypass:$bypass_destination_check to:$to"
-			if { $to != $location && $to_coordinates != $mycoordinates && $bypass_destination_check==0} {
-				puts "Reached a waypoint.  Heading from $location to $to\n";
-				if { $location == "north plaza" } {
-					set myjourney [list]
-					set from "north plaza"
-				}
-				set journey [travel $location $to]
-				set i 0
-				set size [llength $journey]
-				puts "Starting second leg -- i:$i size:$size route:$journey\n"
-				unset expect_out(buffer)
-			}
-		}
 	}
+}
+
+
+proc goto { destination } {
+        set waypoint [location_to_coordinates "north plaza"]
+        set route [get_route $waypoint]
+        set remaining [move $route]
+	if {!($remaining=="")} {
+		return $remaining
+	}
+        puts "Reached waypoint.  Now heading to the $destination."
+        set destination [location_to_coordinates $destination]
+        set route [get_route $destination]
+	puts "Heading for $destination via the route $route"
+        set remaining [move $route]
+	if {!($remaining=="")} {
+		return $remaining
+	}
+	return 0
 }
 
 
@@ -427,17 +390,17 @@ proc get_health {} {
 }
 
 proc get_drink {} {
-	goto tavern
+	goto "tavern"
 	send -- "b drink\r\n"
 }
 
 proc get_meal {} {
-	goto tavern
+	goto "tavern"
         send -- "b meal\r\n"
 }
 
 proc get_healing {} {
-	goto temple
+	goto "temple"
 	send -- "b healing\r\n"
 }
 
@@ -469,7 +432,9 @@ proc deposit_money {} {
 proc get_potions {} {
 	global use_rowan
 	global use_hyssop
+
 	goto "magic shop"
+
 	if { $use_rowan == 1 } {
 		send -- "b rowan\r\n"
 		send -- "drink rowan\r\n"
@@ -500,8 +465,6 @@ proc check_health {} {
 	set returnto $location
 	while { $status == "Thirsty" || $status == "Hungry" || $vitality < $temple_heal_threshold } {
 		if { $count == 0 } {
-			whereami
-			set returnto $location
 			set returncoordinates [list $x $y $z]
 			incr count 1
 		}
@@ -518,16 +481,31 @@ proc check_health {} {
 		get_health
 	}
 	if { $count > 0 } {
-		whereami
-		if { $returnto != $location } {
-			goto $returnto $returncoordinates
+		if { !($returncoordinates == [list $x $y $z]) } {
+			set waypoint [list 0 0 0]
+			set route [get_route $waypoint]
+			move $route
+			set route [get_route $returncoordinates]
+			move $route
 		}
 	}
 	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
-		if { $returnto != $location } { goto $returnto $returncoordinates}
+		if { !($returncoordinates == [list $x $y $z]) } { 
+			set waypoint [list 0 0 0]
+                        set route [get_route $waypoint]
+                        move $route     
+                        set route [get_route $returncoordinates]
+                        move $route
+		}
 		set spell $hurt_spell
 	} elseif { $vitality > $temple_heal_threshold } {
-		if { $returnto != $location } { goto $returnto $returncoordinates}
+                 if { !($returncoordinates == [list $x $y $z]) } { 
+			set waypoint [list 0 0 0]
+                        set route [get_route $waypoint]
+                        move $route
+                        set route [get_route $returncoordinates]
+                        move $route
+		}
 		set spell $heal_spell
 	} 
 }
@@ -600,17 +578,17 @@ proc wander_to { to } {
 		# This procedure will go to a location and fight creatures on the way
 		global location
 		set continue 1
-#		set location [whereami]
 		set destination $to
                 while { $continue == 1 } {
                         set remainingjourney [goto $destination]
                         puts "Remaining Journey: $remainingjourney; location:$location to:$to"
                         fight
-                        if { [info exists remainingjourney] && $remainingjourney != [list]} {
+                        if { [info exists remainingjourney] && [llength $remainingjourney] > 0} {
 				set size [llength $remainingjourney]
 				set to [lindex $remainingjourney $size]
                                 set destination $remainingjourney
                                 puts "Continuing with loop"
+				move $remainingjourney
                                 set continue 1
                         } elseif { $location != $to } {
 				set continue 0
@@ -700,9 +678,8 @@ while { 0 == 0 } {
 		if { $vitality < 85 } {
 			get_healing
 		}
-		wander_to "large cavern"
+		wander_to "minotaur"
 		set temple_heal_threshold $old_temple_heal_threshold
-		set monster "minotaur"
 		whereami
                 wander_to "arena"
 		check_health

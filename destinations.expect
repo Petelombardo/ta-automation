@@ -1,0 +1,59 @@
+proc location_to_coordinates { location } {
+	if { $location == "north plaza" } { return [list 0 0 0] }
+	if { $location == "south plaza" } { return [list 0 -1 0] }
+	if { $location == "magic shop" } { return [list 0 -2 0] }
+	if { $location == "temple" } { return [list -1 0 0] }
+	if { $location == "tavern" } { return [list 1 1 0] }
+	if { $location == "arena" } { return [list 1 0 0] }
+	if { $location == "guild hall" } { return [list 0 1 0] }
+	if { $location == "town vaults" } { return [list 0 1 -1] }
+	if { $location == "dungeon entrance" } { return [list 1 0 -1] }
+	if { $location == "minotaur" } { return [list -3 -3 -1] }
+}
+
+proc get_route { to } {
+	# The from and to need to be coordinates in the form of a list
+	global x
+	global y
+	global z
+
+	set from [list $x $y $z]
+	global learned_routes
+	set route [list]
+	
+	puts "Searching for route from $from to $to"
+
+	set routes([list 0 1 0]) [list n]
+	set routes([list 1 1 0]) [list ne]
+	set routes([list 1 0 0]) [list e]
+	set routes([list -1 0 0]) [list w]
+	set routes([list 0 -2 0]) [list s s]
+	set routes([list -3 -3 -1]) [list e d w w w sw s s]
+	set routes([list 1 0 -1]) [list e d]
+	set routes([list 0 1 -1]) [list n d]
+
+	if { $from == [list 0 0 0] } {
+		# If we are starting from north plaza, then the directions are correct
+		if { [info exists routes($to)] } {
+			set route $routes($to)
+		} elseif { [info exists learned_routes($to)] } {
+			set route $learned_routes($to)
+			puts "Using learned route $route"
+		}
+	} elseif { $to == [list 0 0 0] } {
+		# If we are going to north plaza, then reverse the directions
+		if { [info exists routes($from)] } {
+			set route [reverse_route $routes($from)]
+		} elseif { [info exists learned_routes($from)] } {
+			set route $learned_routes($from)
+			puts "Using learned route $route"
+		}
+	}
+
+	return $route
+}
+
+
+#set $routes("large cave") [list s sw nw n nw n nw ne e ne n n nw]
+
+
