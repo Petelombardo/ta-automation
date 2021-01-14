@@ -123,7 +123,9 @@ proc whereami {} {
 	set count 0
 	send "\r\n"
 	expect -re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\.} {
-		set location $expect_out(4,string)
+		if { !($location == [list $x $y $z]) } {
+			set location $expect_out(4,string)
+		}
 	} else {
 		start_timer 1
 		send "\r\n"
@@ -198,8 +200,10 @@ proc travel { from to } {
 	set journey [list]
 	set autoroute [list]
 	puts "Heading from $from to $to\n"
+	# If we're stuck in the woods or caves and we need a drink, make north plaza the waypoint
+	if { $from == [list $x $y $z] && ( $to == "tavern" || $to == "magic shop" || $to == "town vaults" || $to == "temple" ) } { set to "north plaza" }
 	# Make north plaza the waypoint on all journeys
-	if { $from != "north plaza" && $to != "north plaza" } { set to "north plaza"; puts "... with a waypoint at north plaza." }
+	if { $from != "north plaza" && $to != "north plaza" && $from != [list $x $y $z]} { set to "north plaza"; puts "... with a waypoint at north plaza." }
 	# FROM the north plaza
 	if { $from == "north plaza" && $to == "guild hall" } { set journey [ list n ] }
 	if { $from == "north plaza" && $to == "tavern" } { set journey [ list ne ] }
@@ -209,6 +213,8 @@ proc travel { from to } {
 	if { $from == "north plaza" && $to == "large cavern" } { set journey [ list e d w w w sw s s ] }
 	if { $from == "north plaza" && $to == "dungeon entrance" } { set journey [ list e d ] }
 	if { $from == "north plaza" && $to == "town vaults" } { set journey [ list n d ] }
+	if { $from == "north plaza" && $to == "large cave" } { set journey [list s sw nw n nw n nw ne e ne n n nw] }
+	
 	# TO the north plaza
 	if { $from == "tavern" && $to == "north plaza" } { set journey [ list sw ] }
 	if { $from == "magic shop" && $to == "north plaza" } { set journey [ list n n ] }
@@ -218,10 +224,13 @@ proc travel { from to } {
 	if { $from == "minotaur" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
 	if { $from == "dungeon entrance" && $to == "north plaza" } { set journey [ list u w ] }
 	if { $from == "south plaza" && $to == "north plaza" } { set journey [ list n ] }
+	# large cavern = minotaur
 	if { $from == "large cavern" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
 	if { $from == "town vaults" && $to == "north plaza" } { set journey [ list u s ] }
+	# large cave = griffon
+	if { $from == "large cave" && $to == "north plaza" } { set journey [list se s s sw w sw se s se s se ne n] }
 	set mycoordinates [list $x $y $z]
-	if { [ info exists learned_travel($mycoordinates) ] } {
+	if { [ info exists learned_travel($mycoordinates) ]} {
 			set route $learned_travel($mycoordinates)
 			if { $to == "north plaza" } {
 				set autoroute [ reverse_route $route ]
@@ -268,7 +277,9 @@ proc goto { to {to_coordinates ""} } {
 	set bypass_destination_check 0
 #	if { $lastdestination == "minotaur" && $location == "large cavern" } { $location == "minotaur" }
 #	set lastdestination $to
-	whereami
+	if { $location != [list $x $y $z] } {
+		whereami
+	}
 	if { $location == $to } { return [list]}
 	set journey [travel $location $to]
 	if {  $journey == [list] && $to_coordinates != ""} {
@@ -276,9 +287,15 @@ proc goto { to {to_coordinates ""} } {
 	}
 	if { $journey == [list] && $to != [list]} {
 		set bypass_destination_check 1
-		set journey $to
+		set journey [list]
 		set jsize [llength $journey]
-		set to [lindex $jsize]
+		for { set count 0 } { $count < $jsize } { incr count 1 } {
+			if { $count < $jsize } {
+				lappend journey [lindex $to $count]
+			} else {
+				set to [lindex $to $count]
+			}
+		}
 		puts "Destination unset.  Using route $journey with assumed destination $to"
 	}
 	set from $location
@@ -289,7 +306,7 @@ proc goto { to {to_coordinates ""} } {
 	set remainingjourney [list]
 	while { $i <= $size } {
 		set direction [lindex $journey $i]
-		puts "$direction step $i"
+		puts "$direction step $i of $size"
 		send -- "$direction\r\n"
 		expect { 
 			"$to" { 
@@ -322,15 +339,26 @@ proc goto { to {to_coordinates ""} } {
 			}
 			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
 				set location $expect_out(4,string)
+				update_coordinates $direction
+				set mycoordinates [list $x $y $z]
+                                incr i 1
+                                if { $from == "north plaza" } {
+                                        lappend myjourney $direction
+                                        if { ! [ info exists learned_travel($mycoordinates)] } {
+                                                set learned_travel($mycoordinates) $myjourney
+                                                puts "learned_travel($mycoordinates) = $myjourney"
+                                        }
+                                }
 				if { $mycoordinates != [list 0 0 0] && $mycoordinates != [list -1 0 0] && $mycoordinates != [list 0 1 0] && $mycoordinates != [list 0 1 -1] && $mycoordinates != [list 1 2 0] && $mycoordinates != [list 0 -2 0] } {
 	                                puts "There are monsters here!"
 	                                get_monsters
-	                                if { $nomonster == 0 && $i < [expr $size - 1]} {
+	                                if { $nomonster == 0 && $i < $size } {
 						puts "This is not our final destination, but we'll stay and fight anyway"
 	                                        set remainingjourney [list]
-	                                        for { set j [ expr $i + 1 ] } {$j <= $size} { incr j 1 } {
+	                                        for { set j $i } {$j < $size} { incr j 1 } {
 	                                                lappend remainingjourney [lindex $journey $j]
 	                                        }
+						set location [list $x $y $z]
 						lappend remainingjourney "$to"
 						puts "Recalculating route: $remainingjourney"
 	                                        return $remainingjourney
@@ -338,17 +366,6 @@ proc goto { to {to_coordinates ""} } {
 						puts "We made it to our final destination!"
 					}
 				}
-				update_coordinates $direction
-				set mycoordinates [list $x $y $z]
-				start_timer 2
-				incr i 1
-				if { $from == "north plaza" } {
-                                        lappend myjourney $direction
-                                        if { ! [ info exists learned_travel($mycoordinates)] } {
-                                                set learned_travel($mycoordinates) $myjourney
-                                                puts "learned_travel($mycoordinates) = $myjourney"
-                                        }
-                                }
                         }
 			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\.} {
 				set location $expect_out(4,string)
@@ -365,7 +382,7 @@ proc goto { to {to_coordinates ""} } {
 				incr i 1
 			}
 		}
-		if { $i >= $size } {
+		if { $i > $size } {
 			whereami
 			puts "Location:$location to_coordinates:$to_coordinates mycoordinates:$mycoordinates bypass:$bypass_destination_check to:$to"
 			if { $to != $location && $to_coordinates != $mycoordinates && $bypass_destination_check==0} {
@@ -590,6 +607,8 @@ proc wander_to { to } {
                         puts "Remaining Journey: $remainingjourney; location:$location to:$to"
                         fight
                         if { [info exists remainingjourney] && $remainingjourney != [list]} {
+				set size [llength $remainingjourney]
+				set to [lindex $remainingjourney $size]
                                 set destination $remainingjourney
                                 puts "Continuing with loop"
                                 set continue 1
@@ -686,6 +705,7 @@ while { 0 == 0 } {
 		set monster "minotaur"
 		whereami
                 wander_to "arena"
+		check_health
         }
 	ring_gong
 	check_health
