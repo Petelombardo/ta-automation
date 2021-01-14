@@ -7,7 +7,7 @@ set potion_start 0
 set potion_status "expired"
 set nomonster 1
 set monster ""
-set debug true
+set debug false
 set mino_elapsed 0
 set mino_time 0
 set lastdestination ""
@@ -360,17 +360,19 @@ proc move { journey } {
 }
 
 
-proc goto { destination } {
-        set waypoint [location_to_coordinates "north plaza"]
-        set route [get_route $waypoint]
-        set remaining [move $route]
-	if {!($remaining=="")} {
-		return $remaining
+proc goto { destinationname } {
+	if { ! ($destinationname == "north plaza") } {
+	        set waypoint [location_to_coordinates "north plaza"]
+	        set route [get_route $waypoint]
+	        set remaining [move $route]
+		if {!($remaining=="") && !($remaining==0)} {
+			return $remaining
+		}
+	        puts "Reached waypoint.  Now heading to the $destinationname."
 	}
-        puts "Reached waypoint.  Now heading to the $destination."
-        set destination [location_to_coordinates $destination]
+        set destination [location_to_coordinates $destinationname]
         set route [get_route $destination]
-	puts "Heading for $destination via the route $route"
+	puts "Heading for $destinationname ($destination) via the route $route"
         set remaining [move $route]
 	if {!($remaining=="")} {
 		return $remaining
@@ -604,8 +606,12 @@ proc wander_to { to } {
 		global CR
 		set continue 1
 		set destination $to
-                while { $continue == 1 } {
+		global x
+		global y
+		global z
+	        while { $continue == 1 } {
                         set remainingjourney [goto $destination]
+			set coordinates [list $x $y $z]
                         puts "Remaining Journey: $remainingjourney; location:$location to:$to"
                         fight
                         if { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney == 0)} {
@@ -616,7 +622,7 @@ proc wander_to { to } {
 				move $remainingjourney
 				fight
                                 set continue 1
-                        } elseif { $location != $to } {
+                        } elseif { !($coordinates == [location_to_coordinates $to]) } {
 				set continue 0
 				set remainingjourney [goto $to]
 			} else {
@@ -696,7 +702,7 @@ while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
 	check_health
-	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 120 ]  && $attack_mino == 1} {
+	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 420 ]  && $attack_mino == 1} {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
