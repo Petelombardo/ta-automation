@@ -10,6 +10,7 @@ set monster ""
 set debug false
 set mino_elapsed 0
 set mino_time 0
+if { !([info exists mino_interval]) } { set mino_interval 480 }
 set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
@@ -314,6 +315,13 @@ proc move { journey } {
 			"there\'s no exit" {
 				puts "Something went wrong with navigation."
 				close
+			}
+			"You cannot leave in the heat of battle" {
+				get_monsters
+				for { set attack 0 } { $attack < $attacks_per_round } { incr attack 1 } {
+					send -- "a $monster$CR"
+				}
+				exp_continue
 			}
 			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
 				update_coordinates $direction
@@ -719,7 +727,7 @@ while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
 	check_health
-	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 480 ]  && $attack_mino == 1} {
+	if { $vitality_max > 50 && $vitality > 50 && [ timer mino $mino_interval ]  && $attack_mino == 1} {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
