@@ -361,14 +361,23 @@ proc move { journey } {
 
 
 proc goto { destinationname } {
-	if { ! ($destinationname == "north plaza") } {
+	global x
+	global y
+	global z
+	set coordinates [location_to_coordinates $destinationname]
+	if { $coordinates == [list $x $y $z] } { puts "You're already here ($destinationname)."; return }
+	if { ! ($destinationname == "north plaza") && !($coordinates == [list 0 0 0])} {
 	        set waypoint [location_to_coordinates "north plaza"]
 	        set route [get_route $waypoint]
-	        set remaining [move $route]
-		if {!($remaining=="") && !($remaining==0)} {
-			return $remaining
+		if { !($route == "") && !($route == [list]) && !($route == 0) } {
+		        set remaining [move $route]
+			if {!($remaining=="") && !($remaining==0)} {
+				return $remaining
+			}
+		        puts "Reached waypoint.  Now heading to the $destinationname."
+		} else {
+			puts "Empty route.  Staying put."
 		}
-	        puts "Reached waypoint.  Now heading to the $destinationname."
 	}
         set destination [location_to_coordinates $destinationname]
         set route [get_route $destination]
@@ -610,19 +619,27 @@ proc wander_to { to } {
 		global y
 		global z
 	        while { $continue == 1 } {
-                        set remainingjourney [goto $destination]
 			set coordinates [list $x $y $z]
-                        puts "Remaining Journey: $remainingjourney; location:$location to:$to"
-                        fight
+			if { !($coordinates == [location_to_coordinates $to]) } {
+	                        set remainingjourney [goto $destination]
+	                        puts "Remaining Journey: $remainingjourney; location:$location to:$to"
+				set coordinates [list $x $y $z]
+				fight
+			}
                         if { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney == 0)} {
 				set size [llength $remainingjourney]
 				set to [lindex $remainingjourney $size]
-                                set destination $remainingjourney
+                                #set destination $remainingjourney
                                 puts "Continuing with loop"
 				move $remainingjourney
+				set coordinates [list $x $y $z]
+				if { [list $x $y $z] == [location_to_coordinates $to] } {
+					set continue 0
+				} else {
+					set continue 1
+				}
 				fight
-                                set continue 1
-                        } elseif { !($coordinates == [location_to_coordinates $to]) } {
+                        } elseif { !($coordinates == [location_to_coordinates $to]) && !($to == "")} {
 				set continue 0
 				set remainingjourney [goto $to]
 			} else {
@@ -702,7 +719,7 @@ while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
 	check_health
-	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 420 ]  && $attack_mino == 1} {
+	if { $vitality_max > 50 && $vitality > 50 && [ timer mino 480 ]  && $attack_mino == 1} {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
