@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-set timeout -1
+set timeout 20
 #spawn ./ta-test
 #send -- "he\n";
 source config.expect
@@ -108,6 +108,7 @@ proc connect {} {
 		"/GO KEYS" { send -h "/go ta$CR" }
 		"H,G,C,L" { send -h "/go ta$CR" }
 		"(C)ontinue" { send -h "\n"; exp_continue }
+		timeout { close }
 	}
 }
 
@@ -132,21 +133,14 @@ proc whereami {} {
 	puts "--Coordinates: $x $y $z; Getting location\n"
 	set count 0
 	send "$CR"
-	expect -re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.} {
-		if { !($location == [list $x $y $z]) } {
-			set location $expect_out(4,string)
+	expect {
+		-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.} {
+			if { !($location == [list $x $y $z]) } {
+				set location $expect_out(4,string)
+			}
 		}
-	} else {
-		start_timer 1
-		send "$CR"
-		if { $count < 5 } {
-			exp_continue
-			incr count 1
-		} else {
-			puts "Problem getting your location.  Exiting."
-			close
-		}
-	}
+		timeout { close }
+	} 
 	set coordinates [location_to_coordinates $location]
 	if { [info exists coordinates] && !($coordinates == "") } {
 		set x [lindex $coordinates 0]
@@ -175,6 +169,7 @@ proc get_monsters {} {
                 -re {^(.*) is here.} {
                         set nomonster 1;
                 }
+		timeout { close }
         }
         puts "Monster:$monster; nomonster:$nomonster\n";
 }
@@ -308,6 +303,7 @@ proc move { journey {fasttrack 0} } {
                                         }
 				}
 			}
+			timeout { close }
 		}
 		incr i 1
 	}
@@ -349,9 +345,12 @@ proc get_max_health {} {
 	global mana_max
 	global CR
         send -- "he$CR";
-        expect -re {Mana: *[0-9]* */ *([0-9]*).*\nVitality: *[0-9]* */ *([0-9]*)} {
-		set mana_max $expect_out(1,string)
-		set vitality_max $expect_out(2,string)
+        expect { 
+		-re {Mana: *[0-9]* */ *([0-9]*).*\nVitality: *[0-9]* */ *([0-9]*)} {
+			set mana_max $expect_out(1,string)
+			set vitality_max $expect_out(2,string)
+		}
+		timeout { close }
 	}
 	puts "max vit: $vitality_max; max mana: $mana_max\n";
 }
@@ -362,11 +361,14 @@ proc get_health {} {
 	global status
 	global CR
         send -- "he$CR";
-        expect -re {Mana: *([0-9]*) */ *[0-9]*.*\nVitality: *([0-9]*) */ *[0-9]*.*\nStatus: *([A-Za-z]*)} {
-		set mana $expect_out(1,string)
-		set vitality $expect_out(2,string)
-		set status $expect_out(3,string)
-        } 
+        expect {
+		-re {Mana: *([0-9]*) */ *[0-9]*.*\nVitality: *([0-9]*) */ *[0-9]*.*\nStatus: *([A-Za-z]*)} {
+			set mana $expect_out(1,string)
+			set vitality $expect_out(2,string)
+			set status $expect_out(3,string)
+		}
+		timeout { close }
+	} 
 	puts "V: $vitality; M: $mana; S: $status\n";
 }
 
@@ -389,6 +391,7 @@ proc get_drink {} {
                 "brings you" {}
                 "that is not an appropriate" { close }
 		"you cannot" { close }
+		timeout { close }
         }
 }
 
@@ -411,6 +414,7 @@ proc get_meal {} {
                 "brings you" {}
                 "that is not an appropriate" { close }
                 "you cannot" { close }
+		timeout { close }
         }
 }
 
@@ -433,6 +437,7 @@ proc get_healing {} {
 		"heal all" {}
 		"that is not an appropriate" { close }
 		"you cannot" { close }
+		timeout { close }
 	}
 }
 
@@ -457,6 +462,7 @@ proc deposit_money {} {
 				close
 			}
 		}
+		timeout { close }
 	}
 }
 				
@@ -570,6 +576,7 @@ proc check_attack_response {} {
 		"dodged your" {
 			set nomonster 0;
 		}
+		timeout { close }
         }
 }
 
@@ -682,6 +689,7 @@ proc ring_gong {} {
 				puts "Uh oh, something went wrong.  Better disconnect."
 				close
 			}
+			timeout { close }
 		}
 	}
 	start_timer 5
