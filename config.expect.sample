@@ -17,3 +17,6 @@ set healtype heal
 # Do you want it to periodically attack the mino?
 set attack_mino 1
 
+set attack_griffon 0
+set mino_interval 600
+set griffon_interval 720

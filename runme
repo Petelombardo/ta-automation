@@ -3,6 +3,7 @@ set timeout -1
 #spawn ./ta-test
 #send -- "he\n";
 source config.expect
+source destinations.expect
 set potion_start 0
 set potion_status "expired"
 set nomonster 1
@@ -11,6 +12,7 @@ set debug false
 set mino_elapsed 0
 set mino_time 0
 if { !([info exists mino_interval]) } { set mino_interval 480 }
+if { !([info exists griffon_interval]) } { set griffon_interval 480 }
 set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
@@ -130,7 +132,7 @@ proc whereami {} {
 	puts "--Coordinates: $x $y $z; Getting location\n"
 	set count 0
 	send "$CR"
-	expect -re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\.} {
+	expect -re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.} {
 		if { !($location == [list $x $y $z]) } {
 			set location $expect_out(4,string)
 		}
@@ -145,15 +147,12 @@ proc whereami {} {
 			close
 		}
 	}
-	if { $location == "north plaza" } { set x 0; set y 0; set z 0 }
-	if { $location == "south plaza" } { set x 0; set y -1; set z 0 }
-	if { $location == "magic shop" } { set x 0; set y -2; set z 0 }
-	if { $location == "temple" } { set x -1; set y 0; set z 0 }
-	if { $location == "tavern" } { set x 1; set y 1; set z 0 }
-	if { $location == "arena" } { set x 1; set y 0; set z 0 }
-	if { $location == "guild hall" } { set x 0; set y 1; set z 0 }
-	if { $location == "town vaults" } { set x 0; set y 1; set z -1 }
-	if { $location == "dungeon entrance" } { set x 1; set y 0; set z -1 }
+	set coordinates [location_to_coordinates $location]
+	if { [info exists coordinates] && !($coordinates == "") } {
+		set x [lindex $coordinates 0]
+		set y [lindex $coordinates 1]
+		set z [lindex $coordinates 2]
+	}	
 	puts "--Location: $location\n"
 	return $location
 }
@@ -198,66 +197,6 @@ proc reverse_route { directions } {
 		if { $direction == "u" } { lappend newdirections "d" }
         }
         return $newdirections
-}
-
-source destinations.expect
-
-proc travel { from to } {
-	global journey
-	global monster
-	global learned_travel
-	global x
-	global y
-	global z
-	set journey [list]
-	set autoroute [list]
-	puts "Heading from $from to $to\n"
-	# If we're stuck in the woods or caves and we need a drink, make north plaza the waypoint
-	if { $from == [list $x $y $z] && ( $to == "tavern" || $to == "magic shop" || $to == "town vaults" || $to == "temple" ) } { set to "north plaza" }
-	# Make north plaza the waypoint on all journeys
-	if { $from != "north plaza" && $to != "north plaza" && $from != [list $x $y $z]} { set to "north plaza"; puts "... with a waypoint at north plaza." }
-	# FROM the north plaza
-	if { $from == "north plaza" && $to == "guild hall" } { set journey [ list n ] }
-	if { $from == "north plaza" && $to == "tavern" } { set journey [ list ne ] }
-	if { $from == "north plaza" && $to == "arena" } { set journey [ list e ] }
-	if { $from == "north plaza" && $to == "temple" } { set journey [ list w ] }
-        if { $from == "north plaza" && $to == "magic shop" } { set journey [list s s ] }
-	if { $from == "north plaza" && $to == "large cavern" } { set journey [ list e d w w w sw s s ] }
-	if { $from == "north plaza" && $to == "dungeon entrance" } { set journey [ list e d ] }
-	if { $from == "north plaza" && $to == "town vaults" } { set journey [ list n d ] }
-	if { $from == "north plaza" && $to == "large cave" } { set journey [list s sw nw n nw n nw ne e ne n n nw] }
-	
-	# TO the north plaza
-	if { $from == "tavern" && $to == "north plaza" } { set journey [ list sw ] }
-	if { $from == "magic shop" && $to == "north plaza" } { set journey [ list n n ] }
-	if { $from == "temple" && $to == "north plaza" } { set journey [ list e ] }
-	if { $from == "arena" && $to == "north plaza" } { set journey [ list w ] }
-	if { $from == "guild hall" && $to == "north plaza" } { set journey [ list s ] }
-	if { $from == "minotaur" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
-	if { $from == "dungeon entrance" && $to == "north plaza" } { set journey [ list u w ] }
-	if { $from == "south plaza" && $to == "north plaza" } { set journey [ list n ] }
-	# large cavern = minotaur
-	if { $from == "large cavern" && $to == "north plaza" } { set journey [ list n n ne e e e u w ] }
-	if { $from == "town vaults" && $to == "north plaza" } { set journey [ list u s ] }
-	# large cave = griffon
-	if { $from == "large cave" && $to == "north plaza" } { set journey [list se s s sw w sw se s se s se ne n] }
-	set mycoordinates [list $x $y $z]
-	if { [ info exists learned_travel($mycoordinates) ]} {
-			set route $learned_travel($mycoordinates)
-			if { $to == "north plaza" } {
-				set autoroute [ reverse_route $route ]
-			} elseif {$from == "north plaza"} {
-				set autoroute $route
-			}
-	}
-	set size [llength $autoroute]
-	if { $journey=="" && $autoroute != ""} {
-		puts "Overriding route with: $autoroute"
-		set journey $autoroute
-
-	}
-	puts "Route calculated: $journey"
-	return $journey
 }
 
 proc update_coordinates { direction } {
@@ -323,7 +262,7 @@ proc move { journey } {
 				}
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
 				update_coordinates $direction
 				set mycoordinates [list $x $y $z]
                                 if { $from == [list 0 0 0] } {
@@ -349,7 +288,7 @@ proc move { journey } {
 					}
 				}
                         }
-			-re {You(\'re| are) (in|inside) (a|the) ([a-z ]*)\.} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.} {
 				set location $expect_out(4,string)
 				update_coordinates $direction
 				set mycoordinates [list $x $y $z]
@@ -727,13 +666,14 @@ while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
 	check_health
-	if { $vitality_max > 50 && $vitality > 50 && [ timer mino $mino_interval ]  && $attack_mino == 1} {
+	# MINOTAUR
+	if { [ timer mino $mino_interval ]  && $attack_mino == 1} {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
 		set continue 1
 		whereami
-		if { $vitality < 85 } {
+		if { $vitality < $self_heal_threshold } {
 			get_healing
 		}
 		wander_to "minotaur"
@@ -741,6 +681,23 @@ while { 0 == 0 } {
 		whereami
                 wander_to "arena"
 		check_health
+        }
+	# GRIFFON
+        if { [ timer griffon $griffon_interval ]  && $attack_griffon == 1} {
+                set monster "griffon"
+                set old_temple_heal_threshold $temple_heal_threshold
+                if { $temple_heal_threshold < 60 } { set temple_heal_threshold 60 }
+                set continue 1
+                whereami
+		get_drink
+                if { $vitality < $self_heal_threshold } {
+                        get_healing
+                }
+                wander_to "griffon"
+                set temple_heal_threshold $old_temple_heal_threshold
+                whereami
+                wander_to "arena"
+                check_health
         }
 	ring_gong
 	check_health
