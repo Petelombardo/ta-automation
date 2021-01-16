@@ -9,6 +9,7 @@ proc location_to_coordinates { location } {
 	if { $location == "town vaults" } { return [list 0 1 -1] }
 	if { $location == "dungeon entrance" } { return [list 1 0 -1] }
 	if { $location == "minotaur" } { return [list -3 -3 -1] }
+	if { $location == "griffon" } { return [list -2 8 0] }
 }
 
 proc get_route { to } {
@@ -31,6 +32,7 @@ proc get_route { to } {
 	set routes([list -3 -3 -1]) [list e d w w w sw s s]
 	set routes([list 1 0 -1]) [list e d]
 	set routes([list 0 1 -1]) [list n d]
+	set routes([list -2 8 0]) [list s sw nw n nw n nw ne e ne n n nw]	
 
 	if { $from == [list 0 0 0] } {
 		# If we are starting from north plaza, then the directions are correct
