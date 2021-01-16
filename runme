@@ -3,7 +3,6 @@ set timeout -1
 #spawn ./ta-test
 #send -- "he\n";
 source config.expect
-source destinations.expect
 set potion_start 0
 set potion_status "expired"
 set nomonster 1
@@ -17,6 +16,7 @@ set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
+source destinations.expect
 set x 0
 set y 0
 set z 0
@@ -215,7 +215,7 @@ proc update_coordinates { direction } {
 	if { $direction == "u" } { set z [expr $z + 1] }
 }
 
-proc move { journey } {
+proc move { journey {fasttrack 0} } {
 	global location
 	global lastdestination
 	global monster
@@ -235,6 +235,11 @@ proc move { journey } {
 	while { $i < $size } {
 		set direction [lindex $journey $i]
 		if { [info exists learned_travel($from)] } {
+			if { !($from == [list 0 0 0]) } {
+				set learned_route [reverse_route $learned_travel($from)]
+			} else {
+				set learned_route $learned_travel($from)
+			}
 			puts "Learned route: $learned_travel($from)"
 		}
 		set step [expr $i + 1]
@@ -272,7 +277,7 @@ proc move { journey } {
                                                 puts "learned_travel($mycoordinates) = $myjourney"
                                         }
                                 }
-				if { $mycoordinates != [list 0 0 0] && $mycoordinates != [list -1 0 0] && $mycoordinates != [list 0 1 0] && $mycoordinates != [list 0 1 -1] && $mycoordinates != [list 1 2 0] && $mycoordinates != [list 0 -2 0] } {
+				if { $mycoordinates != [list 0 0 0] && $mycoordinates != [list -1 0 0] && $mycoordinates != [list 0 1 0] && $mycoordinates != [list 0 1 -1] && $mycoordinates != [list 1 2 0] && $mycoordinates != [list 0 -2 0] && $fasttrack == 0 } {
 	                                puts "There are monsters here!"
 	                                get_monsters
 	                                if { $nomonster == 0 && [expr $i +1] < $size } {
@@ -365,20 +370,68 @@ proc get_health {} {
 
 proc get_drink {} {
 	global CR
+        global x
+        global y
+        global z
+        global learned_travel
+        set coordinates [list $x $y $z]
+        if { [info exists learned_travel($coordinates)] && [llength $learned_travel($coordinates)] > 0 } {
+                set fromtown $learned_travel($coordinates)
+                set totown [reverse_route $fromtown]
+                move $totown 1
+                puts "Using learned travel to get back to town."
+        }
 	goto "tavern"
 	send -- "b drink$CR"
+        expect {
+                "brings you" {}
+                "that is not an appropriate" { close }
+		"you cannot" { close }
+        }
 }
 
 proc get_meal {} {
 	global CR
-	goto "tavern"
+        global x
+        global y
+        global z
+        global learned_travel
+        set coordinates [list $x $y $z]
+        if { [info exists learned_travel($coordinates)] && [llength $learned_travel($coordinates)] > 0 } {
+                set fromtown $learned_travel($coordinates)
+                set totown [reverse_route $fromtown]
+                move $totown 1
+                puts "Using learned travel to get back to town."
+        }
+        goto "tavern"
         send -- "b meal$CR"
+        expect {
+                "brings you" {}
+                "that is not an appropriate" { close }
+                "you cannot" { close }
+        }
 }
 
 proc get_healing {} {
 	global CR
+	global x
+	global y
+	global z
+	global learned_travel
+	set coordinates [list $x $y $z]
+	if { [info exists learned_travel($coordinates)] && [llength $learned_travel($coordinates)] > 0 } {
+		set fromtown $learned_travel($coordinates)
+		set totown [reverse_route $fromtown]
+		move $totown 1
+		puts "Using learned travel to get back to town."
+	}
 	goto "temple"
 	send -- "b healing$CR"
+	expect {
+		"heal all" {}
+		"that is not an appropriate" { close }
+		"you cannot" { close }
+	}
 }
 
 proc deposit_money {} {
@@ -550,7 +603,7 @@ proc fight {} {
                 check_health
                 start_timer 7
                 check_health
-                start_timer 8
+                start_timer 7
                 check_health
                 get_monsters
         }
@@ -706,9 +759,9 @@ while { 0 == 0 } {
 		send -- "ep$CR"
 		deposit_money
                 puts "\n"
-		start_timer 18
+		start_timer 15
 		check_health
-		start_timer 18
+		start_timer 15
 	} else {
 		start_timer 5
 	}
