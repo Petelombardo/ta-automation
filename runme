@@ -605,7 +605,7 @@ proc fight {} {
                 check_health
                 start_timer 7
                 check_health
-                start_timer 7
+                start_timer 8
                 check_health
                 get_monsters
         }
