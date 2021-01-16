@@ -265,6 +265,8 @@ proc move { journey {fasttrack 0} } {
 				for { set attack 0 } { $attack < $attacks_per_round } { incr attack 1 } {
 					send -- "a $monster$CR"
 				}
+				start_timer 10
+				send -- "$direction$CR"
 				exp_continue
 			}
 			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
