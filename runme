@@ -505,10 +505,7 @@ proc check_health {} {
 	set returncoordinates [list $x $y $z]
 	set returnto $location
 	while { $status == "Thirsty" || $status == "Hungry" || $vitality < $temple_heal_threshold } {
-		if { $count == 0 } {
-			set returncoordinates [list $x $y $z]
-			incr count 1
-		}
+		incr count 1
 		if { $status == "Thirsty" } {
 			get_drink
 			start_timer 5
@@ -627,20 +624,22 @@ proc wander_to { to } {
 		global x
 		global y
 		global z
+		set firstrun 1
 	        while { $continue == 1 } {
 			set coordinates [list $x $y $z]
-			if { !($coordinates == [location_to_coordinates $to]) } {
+			if { !($coordinates == [location_to_coordinates $to]) && $firstrun == 1} {
 	                        set remainingjourney [goto $destination]
 	                        puts "Remaining Journey: $remainingjourney; location:$location to:$to"
 				set coordinates [list $x $y $z]
 				fight
+				set firstrun 0
 			}
                         if { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney == 0)} {
 				set size [llength $remainingjourney]
 				set to [lindex $remainingjourney $size]
                                 #set destination $remainingjourney
                                 puts "Continuing with loop"
-				move $remainingjourney
+				set remainingjourney [move $remainingjourney]
 				set coordinates [list $x $y $z]
 				if { [list $x $y $z] == [location_to_coordinates $to] } {
 					set continue 0
