@@ -647,13 +647,15 @@ proc wander_to { to } {
 					set continue 1
 				}
 				fight
-                        } elseif { !($coordinates == [location_to_coordinates $to]) && !($to == "")} {
-				set continue 0
-				set remainingjourney [goto $to]
 			} else {
-                                puts "Not continuing with loop"
-                                set continue 0
+				if { !([location_to_coordinates $to]) == [list $x $y $z] } {
+					puts "Last leg of our trip, coming up."
+					set remainingjourney [goto $to]
+				}
                         }
+			if { [info exists remainingjourney] && ([llength $remainingjourney] == 0 || $remainingjourney == 0) } {
+				set continue 0
+			}
                 }
 }
 
