@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-set timeout 20
+set timeout 40
 #spawn ./ta-test
 #send -- "he\n";
 source config.expect
@@ -625,37 +625,17 @@ proc wander_to { to } {
 		global y
 		global z
 		set firstrun 1
-	        while { $continue == 1 } {
-			set coordinates [list $x $y $z]
-			if { !($coordinates == [location_to_coordinates $to]) && $firstrun == 1} {
-	                        set remainingjourney [goto $destination]
-	                        puts "Remaining Journey: $remainingjourney; location:$location to:$to"
-				set coordinates [list $x $y $z]
+		if { !([list $x $y $z] == [location_to_coordinates $to]) } {
+                        set remainingjourney [goto $destination]
+			while { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney==0) } {
 				fight
-				set firstrun 0
-			}
-                        if { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney == 0)} {
-				set size [llength $remainingjourney]
-				set to [lindex $remainingjourney $size]
-                                #set destination $remainingjourney
-                                puts "Continuing with loop"
-				set remainingjourney [move $remainingjourney]
-				set coordinates [list $x $y $z]
-				if { [list $x $y $z] == [location_to_coordinates $to] } {
-					set continue 0
+				if { $destination == [list 0 0 0] } {
+					set remainingjourney [goto $remainingjourney]
 				} else {
-					set continue 1
+					set remainingjourney [move $remainingjourney]
 				}
-				fight
-			} else {
-				if { !([location_to_coordinates $to] == [list $x $y $z]) } {
-					puts "Last leg of our trip, coming up."
-					set remainingjourney [goto $to]
-				}
-                        }
-			if { [info exists remainingjourney] && ([llength $remainingjourney] == 0 || $remainingjourney == 0) } {
-				set continue 0
 			}
+			fight
                 }
 }
 
