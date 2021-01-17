@@ -25,6 +25,7 @@ proc get_route { to } {
 	puts "Searching for route from $from to $to"
 
 	set routes([list 0 1 0]) [list n]
+	set routes([list 0 -1 0]) [list s]
 	set routes([list 1 1 0]) [list ne]
 	set routes([list 1 0 0]) [list e]
 	set routes([list -1 0 0]) [list w]
