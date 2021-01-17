@@ -29,6 +29,16 @@ function  move() {
 		fi
                 echo -e "\e[93mYou're in the arena."
                 echo -e "\e[95mThere is $MONSTER here."
+       elif [ "$LOCATION" == "1,0,-1" ]; then
+		COUNT=0
+                if [ $MONSTERPRESENT -eq 1 ]; then
+                        MONSTER="a troll"
+			VITALITY=$((VITALITY-40))
+                else
+                        MONSTER="nobody"
+                fi
+                echo -e "\e[93mYou're in the arena."
+                echo -e "\e[95mThere is $MONSTER here."
 	elif [ "$LOCATION" == "1,1,0" ]; then
 		echo -e "\e[93mYou're in the tavern."
 		echo -e "\e[92mThere is a barkeep, and a barmaid here."

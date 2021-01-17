@@ -648,7 +648,7 @@ proc wander_to { to } {
 				}
 				fight
 			} else {
-				if { !([location_to_coordinates $to]) == [list $x $y $z] } {
+				if { !([location_to_coordinates $to] == [list $x $y $z]) } {
 					puts "Last leg of our trip, coming up."
 					set remainingjourney [goto $to]
 				}
