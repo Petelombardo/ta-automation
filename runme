@@ -768,9 +768,11 @@ while { 0 == 0 } {
 		send -- "ep$CR"
 		deposit_money
                 puts "\n"
-		start_timer 15
-		check_health
-		start_timer 15
+		if { [expr ($vitality*100)/$vitality_max] < 80 } { 
+			start_timer 15
+			check_health
+			start_timer 15
+		}
 	} else {
 		start_timer 5
 	}
