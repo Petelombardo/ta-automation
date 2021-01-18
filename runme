@@ -379,12 +379,8 @@ proc get_drink {} {
         global z
         global learned_travel
         set coordinates [list $x $y $z]
-        if { [info exists learned_travel($coordinates)] && [llength $learned_travel($coordinates)] > 0 } {
-                set fromtown $learned_travel($coordinates)
-                set totown [reverse_route $fromtown]
-                move $totown 1
-                puts "Using learned travel to get back to town."
-        }
+	set route [get_route [list 0 0 0]]
+        move $route 1
 	goto "tavern"
 	send -- "b drink$CR"
         expect {
@@ -401,13 +397,8 @@ proc get_meal {} {
         global y
         global z
         global learned_travel
-        set coordinates [list $x $y $z]
-        if { [info exists learned_travel($coordinates)] && [llength $learned_travel($coordinates)] > 0 } {
-                set fromtown $learned_travel($coordinates)
-                set totown [reverse_route $fromtown]
-                move $totown 1
-                puts "Using learned travel to get back to town."
-        }
+        set route [get_route [list 0 0 0]]
+        move $route 1
         goto "tavern"
         send -- "b meal$CR"
         expect {
@@ -424,13 +415,8 @@ proc get_healing {} {
 	global y
 	global z
 	global learned_travel
-	set coordinates [list $x $y $z]
-	if { [info exists learned_travel($coordinates)] && [llength $learned_travel($coordinates)] > 0 } {
-		set fromtown $learned_travel($coordinates)
-		set totown [reverse_route $fromtown]
-		move $totown 1
-		puts "Using learned travel to get back to town."
-	}
+        set route [get_route [list 0 0 0]]
+        move $route 1
 	goto "temple"
 	send -- "b healing$CR"
 	expect {
