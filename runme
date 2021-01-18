@@ -415,6 +415,7 @@ proc get_healing {} {
 	global y
 	global z
 	global learned_travel
+	puts "Going to get some healing..."
         set route [get_route [list 0 0 0]]
         move $route 1
 	goto "temple"
@@ -615,8 +616,8 @@ proc wander_to { to } {
                         set remainingjourney [goto $destination]
 			while { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney==0) } {
 				fight
-				if { $destination == [list 0 0 0] } {
-					set remainingjourney [goto $remainingjourney]
+				if { [location_to_coordinates $destination] == [list 0 0 0] } {
+					set remainingjourney [goto $destination]
 				} else {
 					set remainingjourney [move $remainingjourney]
 				}
@@ -716,7 +717,9 @@ while { 0 == 0 } {
         if { [ timer griffon $griffon_interval ]  && $attack_griffon == 1} {
                 set monster "griffon"
                 set old_temple_heal_threshold $temple_heal_threshold
-                if { $temple_heal_threshold < 60 } { set temple_heal_threshold 60 }
+		set old_self_heal_threshold $self_heal_threshold
+                if { $temple_heal_threshold < 70 } { set temple_heal_threshold 70 }
+		if { $self_heal_threshold < 85 } { set self_heal_threshold 85 }
                 set continue 1
                 whereami
 		get_drink
@@ -725,6 +728,7 @@ while { 0 == 0 } {
                 }
                 wander_to "griffon"
                 set temple_heal_threshold $old_temple_heal_threshold
+		set self_heal_threshold $old_self_heal_threshold
                 whereami
                 wander_to "arena"
                 check_health
