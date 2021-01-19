@@ -617,12 +617,19 @@ proc wander_to { to } {
 			while { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney==0) } {
 				fight
 				if { [location_to_coordinates $destination] == [list 0 0 0] } {
+					puts "We fought, now let's get our asses to the $destination"
 					set remainingjourney [goto $destination]
 				} else {
+					puts "We fought, now let's finish our journey: $remainingjourney"
 					set remainingjourney [move $remainingjourney]
 				}
+				puts "Remaining Journey: $remainingjourney"
 			}
 			fight
+			if { !([info exists remainingjourney]) || $remainingjourney==0 || $remainingjourney==""} {
+				whereami
+                                set remainingjourney [goto $destination]
+                        }
                 }
 }
 
