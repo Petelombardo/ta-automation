@@ -17,7 +17,7 @@ set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
-array set monster_damage { minotaur 25 griffon 50 mountain 40}
+array set monster_damage { minotaur 25 griffon 50 "mountain lion" 60 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
 source destinations.expect
 set x 0
 set y 0
@@ -161,10 +161,13 @@ proc get_monsters {} {
         send "$CR";
 	set count 0
         expect {
-                -re {There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)? ?[a-z ]*here\.} {
-                        set monster $expect_out(3,string);
+		-re {There (is|are) (a|an|two|three|four) ([a-z]*[a-rt-z]+)s? ?([a-z]*)?[ |,]*[a-z, ]* here\.} {
+                        set monster [list $expect_out(3,string)]
+			if { [info exists expect_out(4,string)] } {
+				lappend monster $expect_out(4,string)
+			}
                         set nomonster 0;
-                        puts "Found a $monster!"
+                        puts "Found $expect_out(2,string) $monster!"
 			if { $expect_out(2,string) == "a" || $expect_out(2,string) == "an" } { 
 				set count 1 
 			} elseif { $expect_out(2,string) == "two" } { set count 2 
@@ -268,8 +271,9 @@ proc move { journey {fasttrack 0} } {
 			}
 			"You cannot leave in the heat of battle" {
 				get_monsters
+				set monstername [lindex $monster 0]
 				for { set attack 0 } { $attack < $attacks_per_round } { incr attack 1 } {
-					send -- "a $monster$CR"
+					send -- "a $monstername$CR"
 				}
 				start_timer 10
 				send -- "$direction$CR"
@@ -610,8 +614,9 @@ proc fight {} {
 	set old_self_heal_threshold $self_heal_threshold
 
 	set count [get_monsters]
-
-	if { $nomonster == 1 && [info exists monster_damage($monster)] } {
+	puts "Fighting $count $monster"
+	if { $nomonster == 0 && [info exists monster_damage($monster)] } {
+		puts "Monster Damage Per Round: $monster_damage($monster)"
 		set min_temple_heal_threshold [expr $monster_damage($monster) * $count]
 		if {$min_temple_heal_threshold > $temple_heal_threshold } { set temple_heal_threshold $min_temple_heal_threshold}
 		if {$min_temple_heal_threshold > $vitality_max} { return }
@@ -619,7 +624,8 @@ proc fight {} {
 	puts "Temple heal threshold: $temple_heal_threshold"
 
         while { $nomonster == 0 } {
-                attack $monster
+		set monstername [lindex $monster 0]
+                attack $monstername
                 check_health
                 start_timer 7
                 check_health
@@ -697,15 +703,7 @@ proc ring_gong {} {
 		}
 	}
 	start_timer 5
-	while { $nomonster == 0 } {
-		attack $monster
-		check_health
-		start_timer 7
-		check_health
-		start_timer 8			
-		check_health
-		get_monsters
-	}
+	fight
         if { [timer potions 600] && ( $use_rowan == 1 || $use_hyssop == 1 ) } {
                 get_potions
 		whereami
