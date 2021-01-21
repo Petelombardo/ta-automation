@@ -17,7 +17,7 @@ set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
-array set monster_damage { minotaur 25 griffon 50 "mountain lion" 60 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
+array set monster_damage { minotaur 25 griffon 70 "mountain lion" 50 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
 source destinations.expect
 set x 0
 set y 0
@@ -62,16 +62,16 @@ proc timer { type sec } {
 	set now [ clock seconds ]
 	if {![info exists universal_timer_elapsed($type)]} {
 		set universal_timer_elapsed($type) $now
-		return 0
+		return $sec
 	} else {
 		set then $universal_timer_elapsed($type)
 		set now [ clock seconds ]
 		set elapsed [ expr $now - $then ]
 		if { $elapsed >= $universal_timer($type) } {
 			set universal_timer_elapsed($type) $now
-			return 1
-		} else {
 			return 0
+		} else {
+			return [expr $sec - $elapsed]
 		}
 	}
 	return 0
@@ -101,6 +101,7 @@ proc connect {} {
 		"Login" { send -h "$username$CR"; exp_continue }
 		"assword" { send -h "$password$CR"; exp_continue }
 		"Press ENTER to continue)" { send -h "\n"; exp_continue }
+		"ontinue" { send -h "\n"; exp_continue }
 		"Multi-User Games" { send -h "\ng$CR"; exp_continue }
 		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "\ng$CR"; exp_continue }
 		"Trivia Top Ten" { send -- "\n"; exp_continue }
@@ -224,7 +225,7 @@ proc update_coordinates { direction } {
 	if { $direction == "u" } { set z [expr $z + 1] }
 }
 
-proc move { journey {fasttrack 0} } {
+proc move { journey {fasttrack 0} {to ""} } {
 	global location
 	global lastdestination
 	global monster
@@ -235,21 +236,32 @@ proc move { journey {fasttrack 0} } {
 	global z
 	global learned_travel
 	global CR
+	set myjourney [list]
 	
 	if { $journey == [list] } { return }
 	set from [list $x $y $z]
+	set laststep [list]
 	set size [llength $journey]
 	set i 0
 
 	while { $i < $size } {
 		set direction [lindex $journey $i]
+		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
+                if { [info exists learned_travel($laststep)] && !([info exists learned_travel([list $x $y $z])]) && !($from == [list 0 0 0])} {
+			puts "Picking up learning where we left off: $myjourney"
+                        set myjourney $learned_travel($laststep)
+			set from [list 0 0 0]
+                }
+		set laststep [list $x $y $z]
 		if { [info exists learned_travel($from)] } {
 			if { !($from == [list 0 0 0]) } {
-				set learned_route [reverse_route $learned_travel($from)]
+				set learned_route [reverse_route $learned_travel([list $x $y $z])]
 			} else {
-				set learned_route $learned_travel($from)
+				set learned_route $learned_travel([list $x $y $z])
 			}
-			puts "Learned route: $learned_travel($from)"
+			if { [info exists learned_route] } {
+				puts "Learned route: $learned_route"
+			}
 		}
 		set step [expr $i + 1]
 		puts "$direction step $step of $size - route:$journey:"
@@ -334,7 +346,7 @@ proc goto { destinationname } {
 	        set waypoint [location_to_coordinates "north plaza"]
 	        set route [get_route $waypoint]
 		if { !($route == "") && !($route == [list]) && !($route == 0) } {
-		        set remaining [move $route]
+		        set remaining [move $route 0 $coordinates]
 			if {!($remaining=="") && !($remaining==0)} {
 				return $remaining
 			}
@@ -346,7 +358,7 @@ proc goto { destinationname } {
         set destination [location_to_coordinates $destinationname]
         set route [get_route $destination]
 	puts "Heading for $destinationname ($destination) via the route $route"
-        set remaining [move $route]
+        set remaining [move $route 0 $coordinates]
 	if {!($remaining=="") && !($remaining == 0)} {
 		return $remaining
 	}
@@ -609,7 +621,9 @@ proc fight {} {
 	global vitality
 	global self_heal_threshold
 	global temple_heal_threshold
-
+	set round_timer 15
+	set round 0
+	
 	set old_temple_heal_threshold $temple_heal_threshold
 	set old_self_heal_threshold $self_heal_threshold
 
@@ -624,16 +638,21 @@ proc fight {} {
 	puts "Temple heal threshold: $temple_heal_threshold"
 
         while { $nomonster == 0 } {
+		check_health
+		set timeout [timer fight $round_timer]
+		if { $timeout == 0 } { set timeout $round_timer }
+		incr round 1
 		set monstername [lindex $monster 0]
                 attack $monstername
-                check_health
-                start_timer 7
-                check_health
-                start_timer 8
-                check_health
+		expect { 
+			-re {The ([a-z0-9 ]*) damage!([\r|\n])} { check_health; set timeout [timer fight 15]; exp_continue } 
+			"You\'re thirsty." { check_health; }
+			"You\'re hungry." { check_health; }
+			"falls to the ground" { puts "He's dead.  Let's move on." }
+			"Sorry, you don't see" { puts "Looks like he died." }
+		}
                 get_monsters
         }
-
 	set temple_heal_threshold $old_temple_heal_threshold
 }
 
@@ -656,7 +675,7 @@ proc wander_to { to } {
 					set remainingjourney [goto $destination]
 				} else {
 					puts "We fought, now let's finish our journey: $remainingjourney"
-					set remainingjourney [move $remainingjourney]
+					set remainingjourney [move $remainingjourney [location_to_coordinates $to]]
 				}
 				puts "Remaining Journey: $remainingjourney"
 			}
@@ -704,7 +723,7 @@ proc ring_gong {} {
 	}
 	start_timer 5
 	fight
-        if { [timer potions 600] && ( $use_rowan == 1 || $use_hyssop == 1 ) } {
+        if { [timer potions 600] == 0 && ( $use_rowan == 1 || $use_hyssop == 1 ) } {
                 get_potions
 		whereami
                 goto arena
@@ -732,7 +751,7 @@ while { 0 == 0 } {
 	source config.expect
 	check_health
 	# MINOTAUR
-	if { [ timer mino $mino_interval ]  && $attack_mino == 1} {
+	if { [ timer mino $mino_interval ] == 0 && $attack_mino == 1} {
 		set monster "minotaur"
 		set old_temple_heal_threshold $temple_heal_threshold
 		if { $temple_heal_threshold < 50 } { set temple_heal_threshold 50 }
@@ -748,7 +767,7 @@ while { 0 == 0 } {
 		check_health
         }
 	# GRIFFON
-        if { [ timer griffon $griffon_interval ]  && $attack_griffon == 1} {
+        if { [ timer griffon $griffon_interval ] == 0 && $attack_griffon == 1} {
                 set monster "griffon"
                 set old_temple_heal_threshold $temple_heal_threshold
 		set old_self_heal_threshold $self_heal_threshold
