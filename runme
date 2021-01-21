@@ -309,7 +309,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 	                                        for { set j [expr $i +1] } {$j < $size} { incr j 1 } {
 	                                                lappend remainingjourney [lindex $journey $j]
 	                                        }
-						puts "Recalculating route: $remainingjourney"
+						puts "Unfinished Route: $remainingjourney"
 	                                        return $remainingjourney
 	                                } else {
 						puts "We made it to our final destination!"
@@ -621,7 +621,7 @@ proc fight {} {
 	global vitality
 	global self_heal_threshold
 	global temple_heal_threshold
-	set round_timer 15
+	set round_timer 16
 	set round 0
 	
 	set old_temple_heal_threshold $temple_heal_threshold
@@ -640,12 +640,13 @@ proc fight {} {
         while { $nomonster == 0 } {
 		check_health
 		set timeout [timer fight $round_timer]
+		puts $timeout
 		if { $timeout == 0 } { set timeout $round_timer }
 		incr round 1
 		set monstername [lindex $monster 0]
                 attack $monstername
 		expect { 
-			-re {The ([a-z0-9 ]*) damage!([\r|\n])} { check_health; set timeout [timer fight 15]; exp_continue } 
+			-re {The ([a-z0-9 ]*) damage!([\r|\n])} { check_health; set timeout [timer fight $round_timer]; exp_continue } 
 			"You\'re thirsty." { check_health; }
 			"You\'re hungry." { check_health; }
 			"falls to the ground" { puts "He's dead.  Let's move on." }
