@@ -247,7 +247,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 	while { $i < $size } {
 		set direction [lindex $journey $i]
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
-                if { [info exists learned_travel($laststep)] && !([info exists learned_travel([list $x $y $z])]) && !($from == [list 0 0 0])} {
+                if { [info exists learned_travel($laststep)] && !([info exists learned_travel([list $x $y $z])]) && !($from == [list 0 0 0]) && !($to == [list 0 0 0])} {
 			puts "Picking up learning where we left off: $myjourney"
                         set myjourney $learned_travel($laststep)
 			set from [list 0 0 0]
