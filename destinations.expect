@@ -36,37 +36,19 @@ proc get_route { to } {
 	set routes([list -2 8 0]) [list s sw nw n nw n nw ne e ne n n nw]	
 
 
-	if { $from == [list 0 0 0] } {
-		# If we are starting from north plaza, then the directions are correct
-		if { [info exists routes($to)] } {
-			set route $routes($to)
-		} 
-	} elseif { $to == [list 0 0 0] } {
-		# If we are going to north plaza, then reverse the directions
-		if { [info exists routes($from)] } {
-			set route [reverse_route $routes($from)]
-		} 
+	if { $to == [list 0 0 0] && [info exists learned_travel($from)] } {
+		set route [reverse_route $learned_travel($from)]
+	} elseif { $from == [list 0 0 0] && [info exists learned_travel($to)] } {
+		set route $learned_travel($to)
+	} elseif { $to == [list 0 0 0] && [info exists routes($from)] } {
+		set route [reverse_route $routes($from)]
+	} elseif { $from == [list 0 0 0] && [info exists routes($to)] } {
+		set route $routes($to)
 	}
-
-
-        if { (!([info exists route]) || [llength $route] == 0) } {
-		if { [info exists learned_travel($from)] && [llength learned_travel($from)] > 0 } {
-	                set route $learned_travel($from)
-                        set route [reverse_route $route]
-			puts "Returning learned route: route"
-		} 
-		if { $from == [list 0 0 0] && [info exists learned_travel($to)] && [llength learned_travle($to)] > 0 } {
-			set route $learned_travel($to)
-			puts "Returning learned route: $route"
-		}
-        }
-
-
 
 	return $route
 }
 
 
-#set $routes("large cave") [list s sw nw n nw n nw ne e ne n n nw]
 
 
