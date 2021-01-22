@@ -835,6 +835,9 @@ while { 0 == 0 } {
 						set wayback [list]
 					}
 					lappend wayback $interact_out(1,string)
+					if {!([info exists learned_travel([list $x $y $z])])} {
+						set learned_travel([list $x $y $z]) $wayback
+					}
 				}
 				fight { fight }
 			}
