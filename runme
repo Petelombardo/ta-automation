@@ -829,7 +829,7 @@ while { 0 == 0 } {
 			interact {
 				timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 				fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
-				-re {([e|w|n|s|ne|sw|se|nw|u|d])[\r|\n]} {
+				-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
 					move [list $interact_out(1,string)] $fightmode
 					if { [list $x $y $z] == [list 0 0 0] } {
 						set wayback [list]
