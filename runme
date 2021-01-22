@@ -827,7 +827,7 @@ while { 0 == 0 } {
 			set wayback [list]
 			puts "Autopilot: Disengaged (30 seconds)"
 			interact {
-				timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; }
+				timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 				fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
 				-re {([e|w|n|s|ne|sw|se|nw|u|d])[\r|\n]} {
 					move [list $interact_out(1,string)] $fightmode
