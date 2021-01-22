@@ -18,6 +18,7 @@ array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
 array set monster_damage { minotaur 25 griffon 70 "mountain lion" 50 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
+set stats("experience") [list]
 source destinations.expect
 set x 0
 set y 0
@@ -111,6 +112,7 @@ proc connect {} {
 		"/GO KEYS" { send -h "/go ta$CR" }
 		"H,G,C,L" { send -h "/go ta$CR" }
 		"(C)ontinue" { send -h "\n"; exp_continue }
+		"G,T,F,I,D,L,M,A,O,Q,S" { send -- "g$CR"; exp_continue }
 		timeout { close }
 	}
 }
@@ -454,6 +456,26 @@ proc get_healing {} {
 	}
 }
 
+proc track_experience {} {
+	global stats
+	global CR
+	send -- "ep$CR"
+	set timeout 20
+	set experience ""
+	expect {
+		-re {Experience:( *)([0-9]*)} { set experience $expect_out(2,string) }
+		timeout { close }
+	}
+	if { !([info exists stats("experience")]) } {
+		if { [lindex $stats("experience") 0] == "" && !($experience == "")} {
+			set stats("experience") [list $experience]
+		}
+	} else {
+		set newstats [list [lindex $stats("experience") 0] $experience]
+		set stats("experience") $newstats
+	}
+}
+
 proc deposit_money {} {
 	global location
 	global CR
@@ -791,13 +813,31 @@ while { 0 == 0 } {
 	check_health
 	if { $vitality < $vitality_max || $mana < $mana_max } {
 		goto "north plaza"
-		send -- "ep$CR"
+		track_experience
+#		send -- "ep$CR"
 		if { $make_deposits == "true" } { deposit_money }
                 puts "\n"
 		if { [expr ($vitality*100)/$vitality_max] < 80 } { 
-			start_timer 15
 			check_health
-			start_timer 15
+			set fightmode 0
+			set wayback [list]
+			puts "Autopilot: Disengaged (30 seconds)"
+			interact {
+				timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; }
+				fightmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
+				n { move [list n] $fightmode; lappend wayback n}
+				s { move [list s] $fightmode; lappend wayback s}
+				e { move [list e] $fightmode; lappend wayback e}
+				w { move [list w] $fightmode; lappend wayback w}
+				u { move [list u] $fightmode; lappend wayback u}
+				d { move [list d] $fightmode; lappend wayback d}
+				ne { move [list ne] $fightmode; lappend wayback ne}
+				nw { move [list nw] $fightmode; lappend wayback nw}
+				se { move [list se] $fightmode; lappend wayback se}
+				sw { move [list sw] $fightmode; lappend wayback sw}
+				fight { fight }
+			}
+			check_health
 		}
 	} else {
 		start_timer 5
