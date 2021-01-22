@@ -88,6 +88,7 @@ proc connect {} {
 	global CR
 	spawn telnet $server $port
 	set count 0
+	set timeout 15
 	expect {
 		"User-ID" {
 			if { $count > 0 } {
@@ -101,19 +102,22 @@ proc connect {} {
 		"access code" { send -h "$password$CR"; exp_continue }
 		"Login" { send -h "$username$CR"; exp_continue }
 		"assword" { send -h "$password$CR"; exp_continue }
-		"Press ENTER to continue)" { send -h "\n"; exp_continue }
-		"ontinue" { send -h "\n"; exp_continue }
-		"Multi-User Games" { send -h "\ng$CR"; exp_continue }
-		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "\ng$CR"; exp_continue }
-		"Trivia Top Ten" { send -- "\n"; exp_continue }
-		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "\n3$CR"; }
+		"Press ENTER to continue)" { send -h "$CR"; exp_continue }
+		"ontinue" { send -h "$CR"; exp_continue }
+		"Multi-User Games" { send -h "G$CR"; exp_continue }
+		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "$CR"; exp_continue }
+		"Trivia Top Ten" { send -- "$CR"; exp_continue }
+		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "3$CR"; }
 		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a$CR"; }
 		"(N)onstop" { send -h "$CR"; exp_continue }
 		"/GO KEYS" { send -h "/go ta$CR" }
 		"H,G,C,L" { send -h "/go ta$CR" }
-		"(C)ontinue" { send -h "\n"; exp_continue }
-		"G,T,F,I,D,L,M,A,O,Q,S" { send -- "g$CR"; exp_continue }
-		timeout { close }
+		"(C)ontinue" { send -h "$CR"; exp_continue }
+		"G,T,F,I,D,L,M,A,O,Q,S" { send -- "G$CR"; exp_continue }
+		timeout {
+			puts "Problem connecting.  Take over manually please."
+			interact { timeout 10 {} }
+		}
 	}
 }
 
