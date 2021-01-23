@@ -313,7 +313,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
                                 if { $from == [list 0 0 0] } {
                                         lappend myjourney $direction
-                                        if { ! [ info exists learned_travel([list $x $y $z])] } {
+                                        if { ! [ info exists learned_travel([list $x $y $z])] && !([list $x $y $z] == [list 0 0 0])} {
                                                 set learned_travel([list $x $y $z]) $myjourney
                                                 puts "learned_travel([list $x $y $z]) = $myjourney"
                                         }
@@ -342,7 +342,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				start_timer 2
 				if { $from == [list 0 0 0] } {
 					lappend myjourney $direction
-                                        if { ! [ info exists learned_travel([list $x $y $z])] } {
+                                        if { ! [ info exists learned_travel([list $x $y $z])] && !([list $x $y $z] == [list 0 0 0])} {
                                                 set learned_travel([list $x $y $z]) $myjourney
                                                 puts "learned_travel([list $x $y $z]) = $myjourney"
                                         }
@@ -793,7 +793,7 @@ proc interact_loop { {timeout 30 } } {
 				set lastlocation [list $x $y $z]
 				if { $track == 1 } { 
 					lappend wayback $interact_out(1,string)
-					if {!([info exists learned_travel([list $x $y $z])])} {
+					if {!([info exists learned_travel([list $x $y $z])]) && !([list $x $y $z] == [list 0 0 0])} {
 						set learned_travel([list $x $y $z]) $wayback
 						puts "Wayback [reverse_route $wayback]"
 					}
