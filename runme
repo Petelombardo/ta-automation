@@ -235,6 +235,23 @@ proc update_coordinates { direction } {
 	if { $direction == "u" } { set z [expr $z + 1] }
 }
 
+proc update_learned_travel { step lastcoordinates } {
+	global x y z learned_travel
+	puts "Attempt to update travel.  Step: $step, Last coordinates $lastcoordinates"
+	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || !([get_route $lastcoordinates]==[list])) } {
+		puts "Inside if.  Let's see what we find."
+		if { [ info exists learned_travel($lastcoordinates) ] } {
+			set newroute $learned_travel($lastcoordinates)
+		} elseif { !([get_route $lastcoordinates] == [list]) } {
+			set newroute [get_route $lastcoordinates]
+		}
+		if { $lastcoordinates == [list 0 0 0] } { set newroute [list] }
+		lappend newroute $step
+		set learned_travel([list $x $y $z]) $newroute
+		puts "Learned New Route ($x,$y,$z) = $newroute"
+	}
+}
+
 proc move { journey {fasttrack 0} {to ""} } {
 	global location
 	global lastdestination
@@ -248,32 +265,18 @@ proc move { journey {fasttrack 0} {to ""} } {
 	global CR
 	global exit_when_lost
 	set myjourney [list]
-	
+
 	if { $journey == [list] } { return }
 	set from [list $x $y $z]
-	set laststep [list]
+	set lastcoordinates $from	
+	
 	set size [llength $journey]
 	set i 0
+	set track_travel 0
 
 	while { $i < $size } {
 		set direction [lindex $journey $i]
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
-                if { [info exists learned_travel($laststep)] && !([info exists learned_travel([list $x $y $z])]) && !($from == [list 0 0 0]) && !($to == [list 0 0 0])} {
-			puts "Picking up learning where we left off: $myjourney"
-                        set myjourney $learned_travel($laststep)
-			set from [list 0 0 0]
-                }
-		set laststep [list $x $y $z]
-		if { [info exists learned_travel($from)] } {
-			if { !($from == [list 0 0 0]) } {
-				set learned_route [reverse_route $learned_travel([list $x $y $z])]
-			} else {
-				set learned_route $learned_travel([list $x $y $z])
-			}
-			if { [info exists learned_route] } {
-				puts "Learned route: $learned_route"
-			}
-		}
 		set step [expr $i + 1]
 		puts "$direction step $step of $size - route:$journey:"
 		send -- "$direction$CR"
@@ -311,13 +314,8 @@ proc move { journey {fasttrack 0} {to ""} } {
 				set newcoordinates [location_to_coordinates $expect_out(3,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
-                                if { $from == [list 0 0 0] } {
-                                        lappend myjourney $direction
-                                        if { ! [ info exists learned_travel([list $x $y $z])] && !([list $x $y $z] == [list 0 0 0])} {
-                                                set learned_travel([list $x $y $z]) $myjourney
-                                                puts "learned_travel([list $x $y $z]) = $myjourney"
-                                        }
-                                }
+				update_learned_travel $direction $lastcoordinates
+				set lastcoordinates [list $x $y $z]
 				if { !($location == "temple") && !($location == "tavern") && !($location == "guild hall") && !($location == "town vaults") && !($location == "magic shop") && $fasttrack == 0 } {
 	                                puts "There are monsters here!"
 	                                get_monsters
@@ -340,13 +338,8 @@ proc move { journey {fasttrack 0} {to ""} } {
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				start_timer 2
-				if { $from == [list 0 0 0] } {
-					lappend myjourney $direction
-                                        if { ! [ info exists learned_travel([list $x $y $z])] && !([list $x $y $z] == [list 0 0 0])} {
-                                                set learned_travel([list $x $y $z]) $myjourney
-                                                puts "learned_travel([list $x $y $z]) = $myjourney"
-                                        }
-				}
+                                update_learned_travel $direction $lastcoordinates
+                                set lastcoordinates [list $x $y $z]
 			}
 			timeout { close }
 		}
