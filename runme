@@ -307,7 +307,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				exp_continue
 			}
 			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]} {
-				set locatino $expect_out(3,string)
+				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(3,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
