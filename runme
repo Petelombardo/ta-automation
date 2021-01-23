@@ -307,6 +307,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				exp_continue
 			}
 			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]} {
+				set locatino $expect_out(3,string)
 				set newcoordinates [location_to_coordinates $expect_out(3,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
@@ -317,7 +318,7 @@ proc move { journey {fasttrack 0} {to ""} } {
                                                 puts "learned_travel([list $x $y $z]) = $myjourney"
                                         }
                                 }
-				if { !([list $x $y $z] == [list 0 0 0]) && !([list $x $y $z] == [list -1 0 0]) && !([list $x $y $z] == [list 0 1 0]) && !([list $x $y $z] == [list 0 1 -1]) && !([list $x $y $z] == [list 1 2 0]) && !([list $x $y $z] == [list 0 -2 0]) && $fasttrack == 0 } {
+				if { !($location == "temple") && !($location == "tavern") && !($location == "guild hall") && !($location == "town vaults") && !($location == "magic shop") && $fasttrack == 0 } {
 	                                puts "There are monsters here!"
 	                                get_monsters
 	                                if { $nomonster == 0 && [expr $i +1] < $size } {
