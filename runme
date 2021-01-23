@@ -361,27 +361,14 @@ proc goto { destinationname } {
 	global x
 	global y
 	global z
-	set coordinates [location_to_coordinates $destinationname]
-	if { $coordinates == [list $x $y $z] } { puts "You're already here ($destinationname)."; return }
-	if { ! ($destinationname == "north plaza") && !($coordinates == [list 0 0 0])} {
-	        set waypoint [location_to_coordinates "north plaza"]
-	        set route [get_route $waypoint]
-		if { !($route == "") && !($route == [list]) && !($route == 0) } {
-		        set remaining [move $route 0 $coordinates]
-			if {!($remaining=="") && !($remaining==0)} {
-				return $remaining
-			}
-		        puts "Reached waypoint.  Now heading to the $destinationname."
-		} else {
-			puts "Empty route.  Staying put."
+	set to_coordinates [location_to_coordinates $destinationname]
+	if { $to_coordinates == [list $x $y $z] } { puts "You're already here ($destinationname)."; return }
+	set route [get_optimal_route $to_coordinates]
+	if { !($route == [list]) } {
+		set remainingjourney [move $route]
+		if { [llength $remainingjourney] > 0 && !($remainingjourney == "") } {
+			return $remainingjourney
 		}
-	}
-        set destination [location_to_coordinates $destinationname]
-        set route [get_route $destination]
-	puts "Heading for $destinationname ($destination) via the route $route"
-        set remaining [move $route 0 $coordinates]
-	if {!($remaining=="") && !($remaining == 0)} {
-		return $remaining
 	}
 	return 0
 }
@@ -425,10 +412,8 @@ proc get_drink {} {
         global y
         global z
         global learned_travel
-        set coordinates [list $x $y $z]
-	set route [get_route [list 0 0 0]]
+	set route [get_optimal_route [location_to_coordinates "tavern"]]
         move $route 1
-	goto "tavern"
 	send -- "b drink$CR"
         expect {
                 "brings you" {}
@@ -444,9 +429,8 @@ proc get_meal {} {
         global y
         global z
         global learned_travel
-        set route [get_route [list 0 0 0]]
+        set route [get_optimal_route [location_to_coordinates "tavern"]]
         move $route 1
-        goto "tavern"
         send -- "b meal$CR"
         expect {
                 "brings you" {}
@@ -463,9 +447,8 @@ proc get_healing {} {
 	global z
 	global learned_travel
 	puts "Going to get some healing..."
-        set route [get_route [list 0 0 0]]
+        set route [get_optimal_route [location_to_coordinates "temple"]]
         move $route 1
-	goto "temple"
 	send -- "b healing$CR"
 	expect {
 		"heal all" {}
@@ -574,28 +557,19 @@ proc check_health {} {
 	}
 	if { $count > 0 } {
 		if { !($returncoordinates == [list $x $y $z]) } {
-			set waypoint [list 0 0 0]
-			set route [get_route $waypoint]
-			move $route
-			set route [get_route $returncoordinates]
+			set route [get_optimal_route $returncoordinates]
 			move $route
 		}
 	}
 	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
 		if { !($returncoordinates == [list $x $y $z]) } { 
-			set waypoint [list 0 0 0]
-                        set route [get_route $waypoint]
-                        move $route     
-                        set route [get_route $returncoordinates]
+                        set route [get_optimal_route $returncoordinates]
                         move $route
 		}
 		set spell $hurt_spell
 	} elseif { $vitality > $temple_heal_threshold } {
                  if { !($returncoordinates == [list $x $y $z]) } { 
-			set waypoint [list 0 0 0]
-                        set route [get_route $waypoint]
-                        move $route
-                        set route [get_route $returncoordinates]
+                        set route [get_optimal_route $returncoordinates]
                         move $route
 		}
 		set spell $heal_spell
