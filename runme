@@ -9,6 +9,7 @@ set nomonster 1
 set monster ""
 set mino_elapsed 0
 set mino_time 0
+set exit_when_lost 1
 if { !([info exists make_deposits]) } { set make_deposits true }
 if { !([info exists debug]) } { set debug false }
 if { !([info exists mino_interval]) } { set mino_interval 480 }
@@ -20,9 +21,9 @@ array set learned_travel {}
 array set monster_damage { minotaur 25 griffon 70 "mountain lion" 50 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
 set stats("experience") [list]
 source destinations.expect
-set x 0
-set y 0
-set z 0
+set x 999
+set y 999
+set z 999
 if { $debug == "true" } {
 	set CR "\n"
 } else {
@@ -98,25 +99,28 @@ proc connect {} {
 			incr count 1; 
 			exp_continue
 		}
-		"identify" { send -h "$username$CR"; exp_continue }
-		"access code" { send -h "$password$CR"; exp_continue }
-		"Login" { send -h "$username$CR"; exp_continue }
-		"assword" { send -h "$password$CR"; exp_continue }
-		"Press ENTER to continue)" { send -h "$CR"; exp_continue }
-		"ontinue" { send -h "$CR"; exp_continue }
-		"Multi-User Games" { send -h "G$CR"; exp_continue }
-		"T,C,E,A,P,R,I,G,O,L,F,V" { send -h "$CR"; exp_continue }
-		"Trivia Top Ten" { send -- "$CR"; exp_continue }
-		"1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "3$CR"; }
-		-re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a$CR"; }
-		"(N)onstop" { send -h "$CR"; exp_continue }
-		"/GO KEYS" { send -h "/go ta$CR" }
-		"H,G,C,L" { send -h "/go ta$CR" }
-		"(C)ontinue" { send -h "$CR"; exp_continue }
-		"G,T,F,I,D,L,M,A,O,Q,S" { send -- "G$CR"; exp_continue }
+                "identify" { send -h "$username$CR"; exp_continue }
+                "access code" { send -h "$password$CR"; exp_continue }
+                "Login" { send -h "$username$CR"; exp_continue }
+                "assword" { send -h "$password$CR"; exp_continue }
+                "Press ENTER to continue)" { send -h "$CR"; exp_continue }
+                "ontinue" { send -h "$CR"; exp_continue }
+                "Multi-User Games" { send -h "G$CR"; exp_continue }
+                "T,C,E,A,P,R,I,G,O,L,F,V" { send -h "$CR"; exp_continue }
+                "Trivia Top Ten" { send -- "$CR"; exp_continue }
+                "1,2,3,4,5,7,8,9,0,B,C,D,E,F,G,H,I,J,L,M,N,O" { send -h "3$CR"; }
+                -re {2,T,A,F,M,S,L,H,R,O,N,I,K.*X to exit} { send -h "a$CR"; }
+                "(N)onstop" { send -h "$CR"; exp_continue }
+                "/GO KEYS" { send -h "/go ta$CR" }
+                "H,G,C,L" { send -h "/go ta$CR" }
+                "(C)ontinue" { send -h "$CR"; exp_continue }
+                "G,T,F,I,D,L,M,A,O,Q,S" { send -- "G$CR"; exp_continue }
 		timeout {
 			puts "Problem connecting.  Take over manually please."
-			interact { timeout 10 {} }
+			interact {
+				timeout 10 { return }
+				resume { return }
+			}
 		}
 	}
 }
@@ -168,7 +172,7 @@ proc get_monsters {} {
         send "$CR";
 	set count 0
         expect {
-		-re {There (is|are) (a|an|two|three|four) ([a-z]*[a-rt-z]+)s? ?([a-z]*)?[ |,]*[a-z, ]* here\.} {
+		-re {There (is|are) (a|an|two|three|four) ([a-z]*[a-rt-z]+)s? ?([a-z]*)?[ |,]*[a-z, ]* here\.[\r|\n]} {
                         set monster [list $expect_out(3,string)]
 			if { [info exists expect_out(4,string)] } {
 				lappend monster $expect_out(4,string)
@@ -242,6 +246,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 	global z
 	global learned_travel
 	global CR
+	global exit_when_lost
 	set myjourney [list]
 	
 	if { $journey == [list] } { return }
@@ -284,8 +289,12 @@ proc move { journey {fasttrack 0} {to ""} } {
 				exp_continue
 			}
 			"there\'s no exit" {
-				puts "Something went wrong with navigation."
-				close
+				if { $exit_when_lost == 1 } {
+					puts "Something went wrong with navigation."
+					close
+				} else {
+					return [list $direction]
+				}
 			}
 			"You cannot leave in the heat of battle" {
 				get_monsters
@@ -297,8 +306,10 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]} {
+				set newcoordinates [location_to_coordinates $expect_out(3,string)]
 				update_coordinates $direction
+				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
                                 if { $from == [list 0 0 0] } {
                                         lappend myjourney $direction
                                         if { ! [ info exists learned_travel([list $x $y $z])] } {
@@ -322,9 +333,11 @@ proc move { journey {fasttrack 0} {to ""} } {
 					}
 				}
                         }
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]} {
 				set location $expect_out(4,string)
+				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
+				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				start_timer 2
 				if { $from == [list 0 0 0] } {
 					lappend myjourney $direction
@@ -338,6 +351,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 		}
 		incr i 1
 	}
+	puts "($x,$y,$z)"
 	return 0
 }
 
@@ -757,6 +771,44 @@ proc ring_gong {} {
         }
 }
 
+proc interact_loop { {timeout 30 } } {
+	global learned_travel
+	global CR
+	global x y z exit_when_lost
+	set fightmode 0
+	set wayback [list]
+	puts "Autopilot: Disengaged (30 seconds)"
+	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
+	set exit_when_lost 0
+	interact {
+		timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
+		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
+		-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
+			set result [move [list $interact_out(1,string)] $fightmode]
+			if { !($result == $interact_out(1,string)) } {
+				if { [info exists lastdirection] && [list [reverse_route $interact_out(1,string)]] == [list $lastdirection] } { set track 0; unset wayback; set wayback [list]; unset lastdirection }
+				if { [info exists lastlocation] && $lastlocation == [list 0 0 0] } { unset wayback; set wayback [list]; set track 1 }
+				set lastdirection [list $interact_out(1,string)]
+				set lastlocation [list $x $y $z]
+				if { $track == 1 } { 
+					lappend wayback $interact_out(1,string)
+					if {!([info exists learned_travel([list $x $y $z])])} {
+						set learned_travel([list $x $y $z]) $wayback
+						puts "Wayback [reverse_route $wayback]"
+					}
+				}
+			}
+		}
+	        -re {^([a-z]*)[\r|\n]} {
+			puts $interact_out(1,string)
+			send -- "$interact_out(1,string)$CR"
+		}
+		fight { fight }
+		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
+	}
+	set exit_when_lost 1
+}
+
 set send_human {.1 .3 1 .05 2}
 if { $debug == "true" } {
 	connect_test
@@ -770,6 +822,7 @@ get_max_health
 puts "Got max health\n"
 check_health
 puts "Checked initial health\n"
+interact_loop
 goto arena
 
 # This is the main loop that runs
@@ -823,25 +876,7 @@ while { 0 == 0 } {
                 puts "\n"
 		if { [expr ($vitality*100)/$vitality_max] < 80 } { 
 			check_health
-			set fightmode 0
-			set wayback [list]
-			puts "Autopilot: Disengaged (30 seconds)"
-			interact {
-				timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
-				fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
-				-re {\n(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
-					move [list $interact_out(1,string)] $fightmode
-					if { [list $x $y $z] == [list 0 0 0] } {
-						set wayback [list]
-					}
-					lappend wayback $interact_out(1,string)
-					if {!([info exists learned_travel([list $x $y $z])])} {
-						set learned_travel([list $x $y $z]) $wayback
-					}
-				}
-				fight { fight }
-				resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
-			}
+			interact_loop
 			check_health
 		}
 	} else {
