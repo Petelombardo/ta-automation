@@ -553,19 +553,19 @@ proc check_health {} {
 	if { $count > 0 } {
 		if { !($returncoordinates == [list $x $y $z]) } {
 			set route [get_optimal_route $returncoordinates]
-			move $route
+			move $route 0
 		}
 	}
 	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
 		if { !($returncoordinates == [list $x $y $z]) } { 
                         set route [get_optimal_route $returncoordinates]
-                        move $route
+                        move $route 0
 		}
 		set spell $hurt_spell
 	} elseif { $vitality > $temple_heal_threshold } {
                  if { !($returncoordinates == [list $x $y $z]) } { 
                         set route [get_optimal_route $returncoordinates]
-                        move $route
+                        move $route 0
 		}
 		set spell $heal_spell
 	} 
