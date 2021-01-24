@@ -18,7 +18,7 @@ set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
-array set monster_damage { minotaur 25 griffon 70 "mountain lion" 50 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
+array set monster_damage { minotaur 25 griffon 90 "mountain lion" 50 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
 set stats("experience") [list]
 source destinations.expect
 set x 999
@@ -246,9 +246,11 @@ proc update_learned_travel { step lastcoordinates } {
 			set newroute [get_route $lastcoordinates]
 		}
 		if { $lastcoordinates == [list 0 0 0] } { set newroute [list] }
-		lappend newroute $step
-		set learned_travel([list $x $y $z]) $newroute
-		puts "Learned New Route ($x,$y,$z) = $newroute"
+		if { !($lastcoordinates == [list $x $y $z]) && !([list $x $y $z] == [list 0 0 0])} {
+			lappend newroute $step
+			set learned_travel([list $x $y $z]) $newroute
+			puts "Learned New Route ($x,$y,$z) = $newroute"
+		}
 	}
 }
 
@@ -760,18 +762,19 @@ proc interact_loop { {timeout 30 } } {
 				set lastlocation [list $x $y $z]
 				if { $track == 1 } { 
 					lappend wayback $interact_out(1,string)
-					if {!([info exists learned_travel([list $x $y $z])]) && !([list $x $y $z] == [list 0 0 0])} {
-						set learned_travel([list $x $y $z]) $wayback
-						puts "Wayback [reverse_route $wayback]"
-					}
+#					if {!([info exists learned_travel([list $x $y $z])]) && !([list $x $y $z] == [list 0 0 0])} {
+#						set learned_travel([list $x $y $z]) $wayback
+#						puts "Wayback [reverse_route $wayback]"
+#					}
 				}
 			}
 		}
+		-re {^goto ([a-z ]*)[\r|\n]} { goto $interact_out(1,string) }
 	        -re {^([a-z]*)[\r|\n]} {
 			puts $interact_out(1,string)
 			send -- "$interact_out(1,string)$CR"
 		}
-		fight { fight }
+		fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
 		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 	}
 	set exit_when_lost 1
