@@ -172,18 +172,19 @@ proc get_monsters {} {
         send "$CR";
 	global location;
 	set count 0
+	set timeout 10
         expect {
-		-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]*} {
-                        set location $expect_out(4,string)
-                        set monster [list $expect_out(7,string)]
+		-re {You(?:\'re| are) (?:in|inside|outside) (?:a|the) ([a-z  ]*)\..*There (?:is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
+                        set location $expect_out(1,string)
+                        set monster [list $expect_out(3,string)]
                         set nomonster 0;
-                        puts "Found $expect_out(6,string) $monster!"
-			if { $expect_out(6,string) == "a" || $expect_out(6,string) == "an" } { 
+                        puts "Found $expect_out(2,string) $monster!"
+			if { $expect_out(2,string) == "a" || $expect_out(2,string) == "an" } { 
 				set count 1 
-			} elseif { $expect_out(6,string) == "two" } { set count 2 
-			} elseif { $expect_out(6,string) == "three" } { set count 3 
-			} elseif { $expect_out(6,string) == "four" } { set count 4 
-			} else { set count 0 
+			} elseif { $expect_out(2,string) == "two" } { set count 2 
+			} elseif { $expect_out(2,string) == "three" } { set count 3 
+			} elseif { $expect_out(2,string) == "four" } { set count 4 
+			} else { set count 0
 			}
                 }
                 "nobody" {
@@ -316,7 +317,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]*} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]*} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
@@ -747,6 +748,8 @@ proc interact_loop { {timeout 30 } } {
 		fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
 		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 		home { move [get_optimal_route [list 0 0 0]] 1 }
+		monsters { get_monsters }
+		exit { close }
 	}
 	set exit_when_lost 1
 }
