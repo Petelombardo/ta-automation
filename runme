@@ -174,8 +174,9 @@ proc get_monsters {} {
 	set count 0
 	set timeout 10
         expect {
-		-re {You(?:\'re| are) (?:in|inside|outside) (?:a|the) ([a-z  ]*)\..*There (?:is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
+		-re {You(?:\'re| are) (?:in|inside|outside) (?:a|the) ([a-z  ]*)\..*There (?:is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)?here\.} {
                         set location $expect_out(1,string)
+			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { set nomonster 1; return }
                         set monster [list $expect_out(3,string)]
                         set nomonster 0;
                         puts "Found $expect_out(2,string) $monster!"
@@ -190,7 +191,7 @@ proc get_monsters {} {
                 "nobody" {
                         set nomonster 1;
                 }
-                -re {^(.*) is here.} {
+                -re {^([a-z]+) is here.} {
                         set nomonster 1;
                 }
 		timeout { close }
@@ -317,7 +318,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]*} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\.} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
