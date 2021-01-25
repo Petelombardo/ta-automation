@@ -644,7 +644,13 @@ proc fight {} {
 	if { $nomonster == 0 && [info exists monster_damage($monster)] } {
 		puts "Monster Damage Per Round: $monster_damage($monster)"
 		set min_temple_heal_threshold [expr $monster_damage($monster) * $count]
-		if {$min_temple_heal_threshold > $temple_heal_threshold } { set temple_heal_threshold $min_temple_heal_threshold}
+		if {$min_temple_heal_threshold > $temple_heal_threshold  && $min_temple_heal_threshold <= $vitality_max} { 
+			if { $min_temple_heal_threshold > $vitality_max } {
+				set temple_heal_threshold $vitality_max
+			} else {
+				set temple_heal_threshold $min_temple_heal_threshold
+			}
+		} 
 		if {$min_temple_heal_threshold > $vitality_max} { return }
 	}
 	puts "Temple heal threshold: $temple_heal_threshold"
