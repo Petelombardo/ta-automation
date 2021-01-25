@@ -18,7 +18,7 @@ set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
-array set monster_damage { minotaur 25 griffon 90 "mountain lion" 50 "lizard woman" 60 "skeleton warrior" 60 "cave bear" 60}
+array set monster_damage { minotaur 25 griffon 90 "mountain lion" 50 "lizard woman" 20 "skeleton warrior" 20 "cave bear" 20}
 set stats("experience") [list]
 source destinations.expect
 set x 999
@@ -170,20 +170,19 @@ proc get_monsters {} {
 	global CR
         puts "Checking for monsters";
         send "$CR";
+	global location;
 	set count 0
         expect {
-		-re {There (is|are) (a|an|two|three|four) ([a-z]*[a-rt-z]+)s? ?([a-z]*)?[ |,]*[a-z, ]* here\.[\r|\n]} {
-                        set monster [list $expect_out(3,string)]
-			if { [info exists expect_out(4,string)] } {
-				lappend monster $expect_out(4,string)
-			}
+		-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]*} {
+                        set location $expect_out(4,string)
+                        set monster [list $expect_out(7,string)]
                         set nomonster 0;
-                        puts "Found $expect_out(2,string) $monster!"
-			if { $expect_out(2,string) == "a" || $expect_out(2,string) == "an" } { 
+                        puts "Found $expect_out(6,string) $monster!"
+			if { $expect_out(6,string) == "a" || $expect_out(6,string) == "an" } { 
 				set count 1 
-			} elseif { $expect_out(2,string) == "two" } { set count 2 
-			} elseif { $expect_out(2,string) == "three" } { set count 3 
-			} elseif { $expect_out(2,string) == "four" } { set count 4 
+			} elseif { $expect_out(6,string) == "two" } { set count 2 
+			} elseif { $expect_out(6,string) == "three" } { set count 3 
+			} elseif { $expect_out(6,string) == "four" } { set count 4 
 			} else { set count 0 
 			}
                 }
@@ -240,7 +239,7 @@ proc update_learned_travel { step lastcoordinates } {
 	puts "Attempt to update travel.  Step: $step, Last coordinates $lastcoordinates"
 	if { [llength [get_route $lastcoordinates [list 0 0 0]]] > 0 } { set learned_travel($lastcoordinates) [get_route $lastcoordinates [list 0 0 0]]}
 	if { [llength [get_route [list $x $y $z] [list 0 0 0]]] > 0 } { set learned_travel([list $x $y $z]) [get_route [list $x $y $z] [list 0 0 0]] }
-	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || [llength [get_route $lastcoordinates [list 0 0 0]]] > 0) } {
+	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || [llength [get_route $lastcoordinates [list 0 0 0]]] > 0)} {
 		puts "Inside if.  Let's see what we find."
 		if { [ info exists learned_travel($lastcoordinates) ] } {
 			set newroute $learned_travel($lastcoordinates)
@@ -253,6 +252,9 @@ proc update_learned_travel { step lastcoordinates } {
 			set learned_travel([list $x $y $z]) $newroute
 			puts "Learned New Route ($x,$y,$z) = $newroute"
 		}
+	}
+	if { [info exists learned_travel([list $x $y $z])] } {
+		puts "Learned route ($x,$y,$z) = $learned_travel([list $x $y $z])"
 	}
 }
 
@@ -280,6 +282,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 
 	while { $i < $size } {
 		set direction [lindex $journey $i]
+		if { $direction == 0 } { puts "Invalid Direction (0).  Ignoring."; return 0 }
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
 		set step [expr $i + 1]
 		puts "$direction step $step of $size - route:$journey:"
@@ -313,9 +316,9 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]*} {
 				set location $expect_out(4,string)
-				set newcoordinates [location_to_coordinates $expect_out(3,string)]
+				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				update_learned_travel $direction $lastcoordinates
@@ -325,13 +328,11 @@ proc move { journey {fasttrack 0} {to ""} } {
 	                                get_monsters
 	                                if { $nomonster == 0 && [expr $i +1] < $size } {
 						puts "This is not our final destination, but we'll stay and fight anyway"
-	                                        set remainingjourney [list]
-	                                        for { set j [expr $i +1] } {$j < $size} { incr j 1 } {
-	                                                lappend remainingjourney [lindex $journey $j]
-	                                        }
-						puts "Unfinished Route: $remainingjourney"
-	                                        return $remainingjourney
-	                                } else {
+	                                        return 1
+	                                } elseif { $nomonster == 0 } {
+						puts "We made it.  And now let's fight."
+						return 1
+					} else {
 						puts "We made it to our final destination!"
 					}
 				}
@@ -362,10 +363,8 @@ proc goto { destinationname } {
 	if { $to_coordinates == [list $x $y $z] } { puts "You're already here ($destinationname)."; return }
 	set route [get_optimal_route $to_coordinates]
 	if { !($route == [list]) } {
-		set remainingjourney [move $route]
-		if { [llength $remainingjourney] > 0 && !($remainingjourney == "") } {
-			return $remainingjourney
-		}
+		set returnstatus [move $route]
+		return $returnstatus
 	}
 	return 0
 }
@@ -477,7 +476,7 @@ proc track_experience {} {
 
 proc deposit_money {} {
 	global location
-	global CR
+	global CR x y z
 	send -- "i$CR"
 	expect {
 		-re {carrying ([0-9]*) gold} {
@@ -485,12 +484,11 @@ proc deposit_money {} {
 			puts "You are carrying $gold gold\n"
 			if { $gold > 150 } {
 				whereami
-				set returnlocation $location
+				set returnlocation [list $x $y $z]
 				set deposit [ expr $gold - 60 ]
 				goto "town vaults"
 				send -- "de $deposit$CR"
-				whereami
-				goto $returnlocation
+				move $returnlocation
 			} elseif { $gold == 0 } {
 				puts "No gold!  Disconnecting.\n"
 				close
@@ -537,7 +535,6 @@ proc check_health {} {
 	get_health
 	set count 0
 	set returncoordinates [list $x $y $z]
-	set returnto $location
 	while { $status == "Thirsty" || $status == "Hungry" || $vitality < $temple_heal_threshold } {
 		incr count 1
 		if { $status == "Thirsty" } {
@@ -552,25 +549,12 @@ proc check_health {} {
 		}
 		get_health
 	}
-	if { $count > 0 } {
-		if { !($returncoordinates == [list $x $y $z]) } {
-			set route [get_optimal_route $returncoordinates]
-			move $route 0
-		}
-	}
 	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
-		if { !($returncoordinates == [list $x $y $z]) } { 
-                        set route [get_optimal_route $returncoordinates]
-                        move $route 0
-		}
 		set spell $hurt_spell
 	} elseif { $vitality > $temple_heal_threshold } {
-                 if { !($returncoordinates == [list $x $y $z]) } { 
-                        set route [get_optimal_route $returncoordinates]
-                        move $route 0
-		}
 		set spell $heal_spell
 	} 
+	if { $count == 0 } { return 0 } else { return 1 }
 }
 
 
@@ -625,17 +609,10 @@ proc attack { monster } {
 }
 
 proc fight {} {
-	global monster
-	global nomonster
-	global CR
-	global monster_damage
-	global vitality_max
-	global vitality
-	global self_heal_threshold
-	global temple_heal_threshold
-	global location
+	global monster nomonster monster_damage vitality_max vitality self_heal_threshold temple_heal_threshold location CR
 	set round_timer 16
 	set round 0
+	set letsfight 1
 	
 	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { return }
 
@@ -659,7 +636,7 @@ proc fight {} {
 	puts "Temple heal threshold: $temple_heal_threshold"
 
         while { $nomonster == 0 } {
-		check_health
+		if { [check_health] } { return 1 }
 		set timeout [timer fight $round_timer]
 		puts $timeout
 		if { $timeout == 0 } { set timeout $round_timer }
@@ -676,6 +653,7 @@ proc fight {} {
                 get_monsters
         }
 	set temple_heal_threshold $old_temple_heal_threshold
+	return 0
 }
 
 proc wander_to { to } {
@@ -684,32 +662,13 @@ proc wander_to { to } {
 		global CR
 		set continue 1
 		set destination $to
-		global x
-		global y
-		global z
+		global x y z
 		set firstrun 1
 		if { !([list $x $y $z] == [location_to_coordinates $to]) } {
 			while { !([location_to_coordinates $to] == [list $x $y $z]) } {
-				goto $to
-				fight
+				set returnstatus [goto $to]
+				if { $returnstatus == 1 } { fight }
 			}
-#                        set remainingjourney [goto $destination]
-#			while { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney==0) } {
-#				fight
-#				if { [location_to_coordinates $destination] == [list 0 0 0] } {
-#					puts "We fought, now let's get our asses to the $destination"
-#					set remainingjourney [goto $destination]
-#				} else {
-#					puts "We fought, now let's finish our journey: $remainingjourney"
-#					set remainingjourney [move $remainingjourney [location_to_coordinates $to]]
-#				}
-#				puts "Remaining Journey: $remainingjourney"
-#			}
-#			fight
-#			if { !([info exists remainingjourney]) || $remainingjourney==0 || $remainingjourney==""} {
-#				whereami
-#                               set remainingjourney [goto $destination]
-#                        }
                 }
 }
 
