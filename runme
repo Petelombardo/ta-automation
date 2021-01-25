@@ -313,7 +313,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.[\r|\n]} {
+			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? ([a-z]*)?([a-z ]*)here\.} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(3,string)]
 				update_coordinates $direction
@@ -633,9 +633,12 @@ proc fight {} {
 	global vitality
 	global self_heal_threshold
 	global temple_heal_threshold
+	global location
 	set round_timer 16
 	set round 0
 	
+	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { return }
+
 	set old_temple_heal_threshold $temple_heal_threshold
 	set old_self_heal_threshold $self_heal_threshold
 
@@ -686,23 +689,27 @@ proc wander_to { to } {
 		global z
 		set firstrun 1
 		if { !([list $x $y $z] == [location_to_coordinates $to]) } {
-                        set remainingjourney [goto $destination]
-			while { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney==0) } {
+			while { !([location_to_coordinates $to] == [list $x $y $z]) } {
+				goto $to
 				fight
-				if { [location_to_coordinates $destination] == [list 0 0 0] } {
-					puts "We fought, now let's get our asses to the $destination"
-					set remainingjourney [goto $destination]
-				} else {
-					puts "We fought, now let's finish our journey: $remainingjourney"
-					set remainingjourney [move $remainingjourney [location_to_coordinates $to]]
-				}
-				puts "Remaining Journey: $remainingjourney"
 			}
-			fight
-			if { !([info exists remainingjourney]) || $remainingjourney==0 || $remainingjourney==""} {
-				whereami
-                                set remainingjourney [goto $destination]
-                        }
+#                        set remainingjourney [goto $destination]
+#			while { [info exists remainingjourney] && [llength $remainingjourney] > 0 && !($remainingjourney==0) } {
+#				fight
+#				if { [location_to_coordinates $destination] == [list 0 0 0] } {
+#					puts "We fought, now let's get our asses to the $destination"
+#					set remainingjourney [goto $destination]
+#				} else {
+#					puts "We fought, now let's finish our journey: $remainingjourney"
+#					set remainingjourney [move $remainingjourney [location_to_coordinates $to]]
+#				}
+#				puts "Remaining Journey: $remainingjourney"
+#			}
+#			fight
+#			if { !([info exists remainingjourney]) || $remainingjourney==0 || $remainingjourney==""} {
+#				whereami
+#                               set remainingjourney [goto $destination]
+#                        }
                 }
 }
 
@@ -754,31 +761,27 @@ proc interact_loop { {timeout 30 } } {
 	global CR
 	global x y z exit_when_lost
 	set fightmode 0
-	set wayback [list]
+	set wayback [list $x $y $z]
 	puts "Autopilot: Disengaged (30 seconds)"
 	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
 	set exit_when_lost 0
 	interact {
-		timeout 30 { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
-		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
+		timeout 30 { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
+		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
 		-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
 			set result [move [list $interact_out(1,string)] $fightmode]
-#			if { !($result == $interact_out(1,string)) } {
-#				if { [info exists lastdirection] && [list [reverse_route $interact_out(1,string)]] == [list $lastdirection] } { set track 0; unset wayback; set wayback [list]; unset lastdirection }
-#				if { [info exists lastlocation] && $lastlocation == [list 0 0 0] } { unset wayback; set wayback [list]; set track 1 }
-#				set lastdirection [list $interact_out(1,string)]
-#				set lastlocation [list $x $y $z]
-#				if { $track == 1 } { 
-#					lappend wayback $interact_out(1,string)
-#					if {!([info exists learned_travel([list $x $y $z])]) && !([list $x $y $z] == [list 0 0 0])} {
-#						set learned_travel([list $x $y $z]) $wayback
-#						puts "Wayback [reverse_route $wayback]"
-#					}
-#				}
-#			}
+			if { $fightmode == 1 } {
+				fight
+			}
 		}
-		-re {^goto ([a-z ]*)[\r|\n]} { goto $interact_out(1,string) }
-	        -re {^([a-z]*)[\r|\n]} {
+		-re {^goto ([a-z ]*)[\r|\n]} { 
+			set dcoordinates [location_to_coordinates $interact_out(1,string)]
+			while { !($dcoordinates == [list $x $y $z]) } {
+				goto $interact_out(1,string) 
+				fight
+			}
+		}
+	        -re {^([a-z]+)[\r|\n]} {
 			puts $interact_out(1,string)
 			send -- "$interact_out(1,string)$CR"
 		}
@@ -846,6 +849,7 @@ while { 0 == 0 } {
                 wander_to "arena"
                 check_health
         }
+	wander_to "arena"
 	ring_gong
 	check_health
 	if { $vitality < $vitality_max || $mana < $mana_max } {
@@ -862,7 +866,7 @@ while { 0 == 0 } {
 	} else {
 		start_timer 5
 	}
-	goto "arena"
+	wander_to "arena"
 }
 
 expect eof
