@@ -238,11 +238,13 @@ proc update_coordinates { direction } {
 proc update_learned_travel { step lastcoordinates } {
 	global x y z learned_travel
 	puts "Attempt to update travel.  Step: $step, Last coordinates $lastcoordinates"
-	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || !([get_route $lastcoordinates]==[list])) } {
+	if { [llength [get_route $lastcoordinates [list 0 0 0]]] > 0 } { set learned_travel($lastcoordinates) [get_route $lastcoordinates [list 0 0 0]]}
+	if { [llength [get_route [list $x $y $z] [list 0 0 0]]] > 0 } { set learned_travel([list $x $y $z]) [get_route [list $x $y $z] [list 0 0 0]] }
+	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || [llength [get_route $lastcoordinates [list 0 0 0]]] > 0) } {
 		puts "Inside if.  Let's see what we find."
 		if { [ info exists learned_travel($lastcoordinates) ] } {
 			set newroute $learned_travel($lastcoordinates)
-		} elseif { !([get_route $lastcoordinates] == [list]) } {
+		} elseif { !([get_route $lastcoordinates [list 0 0 0]] == [list]) } {
 			set newroute [get_route $lastcoordinates]
 		}
 		if { $lastcoordinates == [list 0 0 0] } { set newroute [list] }
@@ -755,19 +757,19 @@ proc interact_loop { {timeout 30 } } {
 		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: Off" } else { set fightmode 0; puts "Fightmode: On" } }
 		-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
 			set result [move [list $interact_out(1,string)] $fightmode]
-			if { !($result == $interact_out(1,string)) } {
-				if { [info exists lastdirection] && [list [reverse_route $interact_out(1,string)]] == [list $lastdirection] } { set track 0; unset wayback; set wayback [list]; unset lastdirection }
-				if { [info exists lastlocation] && $lastlocation == [list 0 0 0] } { unset wayback; set wayback [list]; set track 1 }
-				set lastdirection [list $interact_out(1,string)]
-				set lastlocation [list $x $y $z]
-				if { $track == 1 } { 
-					lappend wayback $interact_out(1,string)
+#			if { !($result == $interact_out(1,string)) } {
+#				if { [info exists lastdirection] && [list [reverse_route $interact_out(1,string)]] == [list $lastdirection] } { set track 0; unset wayback; set wayback [list]; unset lastdirection }
+#				if { [info exists lastlocation] && $lastlocation == [list 0 0 0] } { unset wayback; set wayback [list]; set track 1 }
+#				set lastdirection [list $interact_out(1,string)]
+#				set lastlocation [list $x $y $z]
+#				if { $track == 1 } { 
+#					lappend wayback $interact_out(1,string)
 #					if {!([info exists learned_travel([list $x $y $z])]) && !([list $x $y $z] == [list 0 0 0])} {
 #						set learned_travel([list $x $y $z]) $wayback
 #						puts "Wayback [reverse_route $wayback]"
 #					}
-				}
-			}
+#				}
+#			}
 		}
 		-re {^goto ([a-z ]*)[\r|\n]} { goto $interact_out(1,string) }
 	        -re {^([a-z]*)[\r|\n]} {
@@ -776,6 +778,7 @@ proc interact_loop { {timeout 30 } } {
 		}
 		fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
 		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
+		home { move [get_optimal_route [list 0 0 0]] 1 }
 	}
 	set exit_when_lost 1
 }

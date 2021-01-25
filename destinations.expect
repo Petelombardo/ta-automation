@@ -41,7 +41,7 @@ proc get_route { to {from ""} } {
 	
 	if { $from == "" } { set from [list $x $y $z] }
 	
-	puts "Searching for route from $from to $to"
+#	puts "Searching for route from $from to $to"
 
 	set routes([list 0 1 0]) [list n]
 	set routes([list 0 -1 0]) [list s]
@@ -56,7 +56,7 @@ proc get_route { to {from ""} } {
 
 	if { !($from == [list 0 0 0]) && !($to == [list 0 0 0]) } { set to [list 0 0 0] }
 	# If we are heading from one place to another and we're not in town, go through town
-	puts "from: $from to: $to"
+#	puts "from: $from to: $to"
 
 	if { $to == [list 0 0 0] && [info exists learned_travel($from)] } {
 		set route [reverse_route $learned_travel($from)]
