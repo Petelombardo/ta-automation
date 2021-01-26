@@ -188,7 +188,7 @@ proc get_monsters {} {
 			} else { set count 0
 			}
                 }
-		-re {(?:[A-za-z0-9 ]*) (?:is|are) here\.} { set nomonster 0; puts "People found, but no monsters found."; return 0;}
+		-re {(?:[A-za-z0-9 ]*) (?:is|are) here\.} { set nomonster 1; puts "People found, but no monsters found."; return 0;}
                 "nobody" {
                         set nomonster 1;
                 }
