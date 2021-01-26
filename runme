@@ -14,6 +14,10 @@ if { !([info exists make_deposits]) } { set make_deposits true }
 if { !([info exists debug]) } { set debug false }
 if { !([info exists mino_interval]) } { set mino_interval 480 }
 if { !([info exists griffon_interval]) } { set griffon_interval 480 }
+if { !([info exists ogre_interval]) } { set ogre_interval 480 }
+if { !([info exists attack_minotaur]) } { set attack_minotaur 0 }
+if { !([info exists attack_griffon]) } { set attack_griffon 0 }
+if { !([info exists attack_ogre]) } { set attack_ogre 0 }
 set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
@@ -809,6 +813,26 @@ while { 0 == 0 } {
                 wander_to "griffon"
                 set temple_heal_threshold $old_temple_heal_threshold
 		set self_heal_threshold $old_self_heal_threshold
+                whereami
+                wander_to "arena"
+                check_health
+        }
+	# Ogre mage
+        if { [ timer ogre $ogre_interval ] == 0 && $attack_ogre == 1} {
+                set monster "ogre"
+                set old_temple_heal_threshold $temple_heal_threshold
+                set old_self_heal_threshold $self_heal_threshold
+                if { $temple_heal_threshold < 70 } { set temple_heal_threshold 70 }
+                if { $self_heal_threshold < 85 } { set self_heal_threshold 85 }
+                set continue 1
+                whereami
+                get_drink
+                if { $vitality < $self_heal_threshold } {
+                        get_healing
+                }
+                wander_to "ogre mage"
+                set temple_heal_threshold $old_temple_heal_threshold
+                set self_heal_threshold $old_self_heal_threshold
                 whereami
                 wander_to "arena"
                 check_health
