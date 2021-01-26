@@ -285,6 +285,8 @@ proc move { journey {fasttrack 0} {to ""} } {
 		if { $direction == 0 } { puts "Invalid Direction (0).  Ignoring."; return 0 }
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
 		set step [expr $i + 1]
+		start_timer 1
+		expect *
 		puts "$direction step $step of $size - route:$journey:"
 		send -- "$direction$CR"
 		expect { 
@@ -336,13 +338,14 @@ proc move { journey {fasttrack 0} {to ""} } {
 						puts "We made it to our final destination!"
 					}
 				}
+				start_timer 1
                         }
 			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
-				start_timer 2
+				start_timer 1
                                 update_learned_travel $direction $lastcoordinates
                                 set lastcoordinates [list $x $y $z]
 			}
