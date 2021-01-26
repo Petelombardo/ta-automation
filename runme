@@ -168,6 +168,7 @@ proc get_monsters {} {
         global monster;
         global nomonster;
 	global CR
+	expect *
         puts "Checking for monsters";
         send "$CR";
 	global location;
@@ -188,10 +189,10 @@ proc get_monsters {} {
 			} else { set count 0
 			}
                 }
-		-re {(?:[A-za-z0-9 ]*) (?:is|are) here\.} { set nomonster 1; puts "People found, but no monsters found."; return 0;}
                 "nobody" {
                         set nomonster 1;
                 }
+		-re {(?:[A-za-z0-9 ]*) (?:is|are) here\.} { set nomonster 1; puts "People found, but no monsters found."; return 0;}
 		timeout { close }
         }
         puts "Monster:$monster; nomonster:$nomonster\n";
@@ -286,9 +287,8 @@ proc move { journey {fasttrack 0} {to ""} } {
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
 		set step [expr $i + 1]
 		start_timer 1
-		expect *
-		puts "$direction step $step of $size - route:$journey:"
 		send -- "$direction$CR"
+		puts "$direction step $step of $size - route:$journey:"
 		expect { 
 			"rest a while" {
 				start_timer 2
