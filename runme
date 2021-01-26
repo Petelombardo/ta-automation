@@ -175,7 +175,7 @@ proc get_monsters {} {
 	set count 0
 	set timeout 10
         expect {
-		-re {You(?:\'re| are) (?:in|inside|outside) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)s? [, a-z]*here\.} {
+		-re {You(?:\'re| are) (?:in|inside|outside) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)s?,? [, a-z]*here\.} {
                         set location $expect_out(1,string)
 			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { set nomonster 1; return }
                         set monster [list $expect_out(3,string)]
