@@ -1,0 +1,10 @@
+array set monster_damage { 
+	minotaur 25 
+	griffon 90 
+	"mountain lion" 50 
+	"lizard woman" 20 
+	"skeleton warrior" 20 
+	"cave bear" 20
+	"ogre mage" 100
+}
+

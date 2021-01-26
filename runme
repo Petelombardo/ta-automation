@@ -18,7 +18,6 @@ set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
-array set monster_damage { minotaur 25 griffon 90 "mountain lion" 50 "lizard woman" 20 "skeleton warrior" 20 "cave bear" 20}
 set stats("experience") [list]
 source destinations.expect
 set x 999
@@ -776,6 +775,7 @@ goto arena
 while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
+	source monsters.expect
 	check_health
 	# MINOTAUR
 	if { [ timer mino $mino_interval ] == 0 && $attack_mino == 1} {
