@@ -538,7 +538,7 @@ proc check_health {} {
 	global mana
 	global status
 	global spawn_id
-	global heal_spell heal_spell spells monster
+	global heal_spell hurt_spell spells monster
 	global spell
 	global location
 	global self_heal_threshold
