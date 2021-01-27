@@ -808,11 +808,16 @@ proc interact_loop { {timeout 30 } } {
 	global x y z exit_when_lost
 	set fightmode 0
 	set wayback [list $x $y $z]
-	puts "Autopilot: Disengaged (30 seconds)"
 	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
 	set exit_when_lost 0
+	# Just want to flush the queue of commands before we start listening
+	interact { 
+		timeout 1 { return }
+		* { return }
+	}
+	puts "Autopilot: Disengaged (45 seconds)"
 	interact {
-		timeout 30 { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
+		timeout 45 { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
 		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
 		-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
 			set result [move [list $interact_out(1,string)] $fightmode]
