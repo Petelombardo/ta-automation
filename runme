@@ -810,12 +810,11 @@ proc interact_loop { {timeout 30 } } {
 	set wayback [list $x $y $z]
 	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
 	set exit_when_lost 0
-	# Just want to flush the queue of commands before we start listening
-	interact { 
-		timeout 1 { return }
-		* { return }
-	}
 	puts "Autopilot: Disengaged (45 seconds)"
+	interact { 
+		timeout 1 {return}; 
+		-re {(.*)} {return};
+	}
 	interact {
 		timeout 45 { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
 		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
@@ -832,15 +831,18 @@ proc interact_loop { {timeout 30 } } {
 				fight
 			}
 		}
-	        -re {^([a-z]+)[\r|\n]} {
-			puts $interact_out(1,string)
-			send -- "$interact_out(1,string)$CR"
+	        -re {([^a-z])*([a-z]+)[\r|\n]} {
+			if { !([exists $interact_out(1,string)]) } {
+				puts $interact_out(2,string)
+				send -- "$interact_out(2,string)$CR"
+			}
 		}
 		fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
 		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 		home { move [get_optimal_route [list 0 0 0]] 1 }
 		monsters { get_monsters }
 		exit { close }
+		* {}
 	}
 	set exit_when_lost 1
 }
