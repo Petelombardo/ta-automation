@@ -23,15 +23,6 @@ array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
 set stats("experience") [list]
-if { [info exists town] && $town == 2} {
-	source town2.expect
-	set attack_ogre 0
-	set attack_minotaur 0
-	set attack_griffon 0
-} else {
-	source town1.expect
-}
-source town2.expect
 set x 999
 set y 999
 set z 999
@@ -147,6 +138,35 @@ proc disconnect {} {
 	exit
 }
 
+proc reverse_route { directions } {
+        set directions [lreverse $directions]
+        set newdirections [list]
+        set size [llength $directions]
+        for { set i 0 } { $i < $size } { incr i 1 } {
+                set direction [lindex $directions $i]
+                if { $direction == "e" } { lappend newdirections "w" }
+                if { $direction == "w" } { lappend newdirections "e" }
+                if { $direction == "n" } { lappend newdirections "s" }
+                if { $direction == "s" } { lappend newdirections "n" }
+                if { $direction == "ne" } { lappend newdirections "sw" }
+                if { $direction == "se" } { lappend newdirections "nw" }
+                if { $direction == "nw" } { lappend newdirections "se" }
+                if { $direction == "sw" } { lappend newdirections "ne" }
+                if { $direction == "d" } { lappend newdirections "u" }
+                if { $direction == "u" } { lappend newdirections "d" }
+        }
+        return $newdirections
+}
+
+if { [info exists town] && $town == 2} {
+        source town2.expect
+        set attack_ogre 0
+        set attack_minotaur 0
+        set attack_griffon 0
+} else {
+        source town1.expect
+}
+
 proc whereami {} {
 	global location
 	global x
@@ -211,6 +231,55 @@ proc get_monsters {} {
         puts "Monster:$monster; nomonster:$nomonster\n";
 	return $count
 }
+
+proc get_optimal_route { to } {
+	global x y z
+	set route1 [get_route $to]
+        if { !([list $x $y $z] == [list 0 0 0]) } {
+                set route2 [get_route $to [list 0 0 0]]
+        } else {
+                set route2 [list]
+        }
+	set start 0
+	set finished 0
+	set i 0
+	if { [llength $route1] > [llength $route2] } {
+		set size [llength $route1]
+	} else {
+		set size [llength $route2]
+	}
+	set route1_reversed [reverse_route $route1]
+	while { $finished == 0 } {
+		if { [info exists route1_reversed] && [info exists route2] && !([lindex $route1_reversed $i] == "") && !([lindex $route2 $i] == "")} {
+			if {[lindex $route1_reversed $i] == [lindex $route2 $i]} {
+				incr start 1
+				incr i 1
+			} else {
+				set finished 1
+			}
+		} else {
+			set finished 1
+		}
+	}
+	if { [ info exists route1_reversed ] } {
+		for {set i $start} {$i < [llength $route1_reversed]} { incr i 1} {
+			lappend route1_temp [lindex $route1_reversed $i]
+		}
+	} 
+	if { [ info exists route1_temp ] } {
+		set mergedroute [reverse_route $route1_temp]
+	} else {
+		set mergedroute [list]
+	}
+	if { [ info exists route2 ] } {
+		for {set i $start} {$i < [llength $route2]} { incr i 1} {
+			lappend mergedroute [lindex $route2 $i]
+		}
+	}
+	return $mergedroute
+}
+
+
 
 proc reverse_route { directions } {
         set directions [lreverse $directions]
