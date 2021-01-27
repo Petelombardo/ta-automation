@@ -831,18 +831,16 @@ proc interact_loop { {timeout 30 } } {
 				fight
 			}
 		}
-	        -re {([^a-z])*([a-z]+)[\r|\n]} {
-			if { !([info exists $interact_out(1,string)]) } {
-				puts $interact_out(2,string)
-				send -- "$interact_out(2,string)$CR"
-			}
+	        -re {([a-z]+)[\r|\n]} {
+			puts $interact_out(1,string)
+			send -- "$interact_out(1,string)$CR"
 		}
 		fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
 		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 		home { move [get_optimal_route [list 0 0 0]] 1 }
 		monsters { get_monsters }
 		exit { close }
-		* {}
+		-re {([^a-z]+[a-z]*)} {}
 	}
 	set exit_when_lost 1
 }
