@@ -701,7 +701,7 @@ proc fight {} {
 	set round_timer 16
 	set round 0
 	set letsfight 1
-	
+	source monsters.expect	
 	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { return }
 
 	set old_temple_heal_threshold $temple_heal_threshold
@@ -710,8 +710,8 @@ proc fight {} {
 	set count [get_monsters]
 	puts "Fighting $count $monster"
 	if { $nomonster == 0 && [info exists monster_damage($monster)] } {
-		puts "Monster Damage Per Round: $monster_damage($monster)"
 		set min_temple_heal_threshold [expr $monster_damage($monster) * $count]
+		puts "Monster Damage Per Round: $min_temple_heal_threshold"
 		if {$min_temple_heal_threshold > $temple_heal_threshold  && $min_temple_heal_threshold <= $vitality_max} { 
 			if { $min_temple_heal_threshold > $vitality_max } {
 				set temple_heal_threshold $vitality_max
