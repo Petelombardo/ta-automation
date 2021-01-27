@@ -6,5 +6,6 @@ array set monster_damage {
 	"skeleton warrior" 20 
 	"cave bear" 20
 	"ogre mage" 100
+	"warlock" 110
 }
 
