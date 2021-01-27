@@ -1,0 +1,122 @@
+proc reverse_route { directions } {
+        set directions [lreverse $directions]
+        set newdirections [list]
+        set size [llength $directions]
+        for { set i 0 } { $i < $size } { incr i 1 } {
+                set direction [lindex $directions $i]
+                if { $direction == "e" } { lappend newdirections "w" }
+                if { $direction == "w" } { lappend newdirections "e" }
+                if { $direction == "n" } { lappend newdirections "s" }
+                if { $direction == "s" } { lappend newdirections "n" }
+                if { $direction == "ne" } { lappend newdirections "sw" }
+                if { $direction == "se" } { lappend newdirections "nw" }
+                if { $direction == "nw" } { lappend newdirections "se" }
+                if { $direction == "sw" } { lappend newdirections "ne" }
+                if { $direction == "d" } { lappend newdirections "u" }
+                if { $direction == "u" } { lappend newdirections "d" }
+        }
+        return $newdirections
+}
+
+proc location_to_coordinates { location } {
+	if { $location == "north plaza" } { return [list 0 0 0] }
+	if { $location == "south plaza" } { return [list 0 -1 0] }
+	if { $location == "magic shop" } { return [list 0 -2 0] }
+	if { $location == "temple" } { return [list -1 0 0] }
+	if { $location == "tavern" } { return [list 1 1 0] }
+	if { $location == "arena" } { return [list 1 0 0] }
+	if { $location == "guild hall" } { return [list 0 1 0] }
+	if { $location == "town vaults" } { return [list 0 1 -1] }
+	if { $location == "dungeon entrance" } { return [list 1 0 -1] }
+	if { $location == "minotaur" } { return [list -3 -3 -1] }
+	if { $location == "griffon" } { return [list -2 8 0] }
+	if { $location == "ogre mage" } { return [list 5 8 0] }
+}
+
+proc get_route { to {from ""} } {
+	# The from and to need to be coordinates in the form of a list
+	global x y z
+
+	global learned_travel
+	set route [list]
+	
+	if { $from == "" } { set from [list $x $y $z] }
+	
+#	puts "Searching for route from $from to $to"
+
+	set routes([list 0 1 0]) [list n]
+	set routes([list 0 -1 0]) [list s]
+	set routes([list 1 1 0]) [list ne]
+	set routes([list 1 0 0]) [list e]
+	set routes([list -1 0 0]) [list w]
+	set routes([list 0 -2 0]) [list s s]
+	set routes([list -3 -3 -1]) [list e d w w w sw s s]
+	set routes([list 1 0 -1]) [list e d]
+	set routes([list 0 1 -1]) [list n d]
+	set routes([list -2 8 0]) [list s sw nw n nw n nw ne e ne n n nw]	
+	set routes([list 5 8 0]) [list s sw se e e ne e ne ne n nw ne ne n nw nw n]
+
+	if { !($from == [list 0 0 0]) && !($to == [list 0 0 0]) } { set to [list 0 0 0] }
+	# If we are heading from one place to another and we're not in town, go through town
+#	puts "from: $from to: $to"
+
+	if { $to == [list 0 0 0] && [info exists learned_travel($from)] } {
+		set route [reverse_route $learned_travel($from)]
+	} elseif { $from == [list 0 0 0] && [info exists learned_travel($to)] } {
+		set route $learned_travel($to)
+	} elseif { $to == [list 0 0 0] && [info exists routes($from)] } {
+		set route [reverse_route $routes($from)]
+	} elseif { $from == [list 0 0 0] && [info exists routes($to)] } {
+		set route $routes($to)
+	}
+
+	return $route
+}
+
+proc get_optimal_route { to } {
+	global x y z
+	set route1 [get_route $to]
+        if { !([list $x $y $z] == [list 0 0 0]) } {
+                set route2 [get_route $to [list 0 0 0]]
+        } else {
+                set route2 [list]
+        }
+	set start 0
+	set finished 0
+	set i 0
+	if { [llength $route1] > [llength $route2] } {
+		set size [llength $route1]
+	} else {
+		set size [llength $route2]
+	}
+	set route1_reversed [reverse_route $route1]
+	while { $finished == 0 } {
+		if { [info exists route1_reversed] && [info exists route2] && !([lindex $route1_reversed $i] == "") && !([lindex $route2 $i] == "")} {
+			if {[lindex $route1_reversed $i] == [lindex $route2 $i]} {
+				incr start 1
+				incr i 1
+			} else {
+				set finished 1
+			}
+		} else {
+			set finished 1
+		}
+	}
+	if { [ info exists route1_reversed ] } {
+		for {set i $start} {$i < [llength $route1_reversed]} { incr i 1} {
+			lappend route1_temp [lindex $route1_reversed $i]
+		}
+	} 
+	if { [ info exists route1_temp ] } {
+		set mergedroute [reverse_route $route1_temp]
+	} else {
+		set mergedroute [list]
+	}
+	if { [ info exists route2 ] } {
+		for {set i $start} {$i < [llength $route2]} { incr i 1} {
+			lappend mergedroute [lindex $route2 $i]
+		}
+	}
+	return $mergedroute
+}
+

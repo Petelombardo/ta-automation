@@ -23,7 +23,15 @@ array set universal_timer {}
 array set universal_timer_elapsed {}
 array set learned_travel {}
 set stats("experience") [list]
-source destinations.expect
+if { [info exists town] && $town == 2} {
+	source town2.expect
+	set attack_ogre 0
+	set attack_minotaur 0
+	set attack_griffon 0
+} else {
+	source town1.expect
+}
+source town2.expect
 set x 999
 set y 999
 set z 999
@@ -150,7 +158,7 @@ proc whereami {} {
 	set count 0
 	send "$CR"
 	expect {
-		-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.} {
+		-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\.} {
 			if { !($location == [list $x $y $z]) } {
 				set location $expect_out(4,string)
 			}
@@ -178,10 +186,12 @@ proc get_monsters {} {
 	set count 0
 	set timeout 10
         expect {
-		-re {You(?:\'re| are) (?:in|inside|outside) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)s?,? [, a-z]*here\.} {
+		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\.} {
                         set location $expect_out(1,string)
-			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { set nomonster 1; return }
-                        set monster [list $expect_out(3,string)]
+			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" } { set nomonster 1; return }
+#                        set monster [list $expect_out(3,string)]
+			set monster $expect_out(3,string)
+			if { [info exists expect_out(4,string)] && ($expect_out(4,string) == "ss" || $expect_out(4,string) == "ssess")} { set suffix "ss"; set monster "$monster$suffix" }
                         set nomonster 0;
                         puts "Found $expect_out(2,string) $monster!"
 			if { $expect_out(2,string) == "a" || $expect_out(2,string) == "an" } { 
@@ -321,7 +331,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\.} {
+			-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\.} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
@@ -343,7 +353,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				}
 				start_timer 1
                         }
-			-re {You(\'re| are) (in|inside|outside) (a|the) ([a-z ]*)\.[\r|\n]} {
+			-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\.[\r|\n]} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
@@ -528,8 +538,7 @@ proc check_health {} {
 	global mana
 	global status
 	global spawn_id
-	global heal_spell
-	global hurt_spell
+	global heal_spell heal_spell spells monster
 	global spell
 	global location
 	global self_heal_threshold
@@ -556,7 +565,11 @@ proc check_health {} {
 		get_health
 	}
 	if { $vitality > $self_heal_threshold || $heal_spell == "" } {
-		set spell $hurt_spell
+		if { [info exists spells($monster)] } {
+			set spell $spells($monster)
+		} else {
+			set spell $hurt_spell
+		}
 	} elseif { $vitality > $temple_heal_threshold } {
 		set spell $heal_spell
 	} 
@@ -694,10 +707,9 @@ proc ring_gong {} {
 	if { $nomonster == 1 } {
 		send -- "ri g$CR";
 		expect {
-			-re {An? .* enters the arena} {
-				set response $expect_out(0,string)
-				set monster [ exec echo $response | grep "enters" | cut -d " " -f2  | sed -e "s/ *$//"]
-				puts "\nmonster: $monster"
+			-re {An? ([a-z]*) [a-z ]*(?:enters|appears)} {
+				set monster $expect_out(1,string)
+				puts "monster: $monster"
 				set nomonster 0
 			}
 			"physically exhausted" {
@@ -846,7 +858,7 @@ while { 0 == 0 } {
 #		send -- "ep$CR"
 		if { $make_deposits == "true" } { deposit_money }
                 puts "\n"
-		if { [expr ($vitality*100)/$vitality_max] < 80 } { 
+		if { [expr ($vitality*100)/$vitality_max] < 80 || $mana < [expr $mana_max / 2]} { 
 			check_health
 			interact_loop
 			check_health
