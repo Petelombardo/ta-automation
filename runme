@@ -832,7 +832,7 @@ proc interact_loop { {timeout 30 } } {
 			}
 		}
 	        -re {([^a-z])*([a-z]+)[\r|\n]} {
-			if { !([exists $interact_out(1,string)]) } {
+			if { !([info exists $interact_out(1,string)]) } {
 				puts $interact_out(2,string)
 				send -- "$interact_out(2,string)$CR"
 			}
