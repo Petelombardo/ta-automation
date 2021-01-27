@@ -831,7 +831,7 @@ proc interact_loop { {timeout 30 } } {
 				fight
 			}
 		}
-	        -re {([a-z]+)[\r|\n]} {
+	        -re {([a-z 0-9]+)[\r|\n]} {
 			puts $interact_out(1,string)
 			send -- "$interact_out(1,string)$CR"
 		}
