@@ -208,7 +208,7 @@ proc get_monsters {} {
         expect {
 		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\.} {
                         set location $expect_out(1,string)
-			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" } { set nomonster 1; return }
+			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" || $location == "docks"} { set nomonster 1; return }
 #                        set monster [list $expect_out(3,string)]
 			set monster $expect_out(3,string)
 			if { [info exists expect_out(4,string)] && ($expect_out(4,string) == "ss" || $expect_out(4,string) == "ssess")} { set suffix "ss"; set monster "$monster$suffix" }
