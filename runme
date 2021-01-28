@@ -810,13 +810,13 @@ proc interact_loop { {timeout 30 } } {
 	set wayback [list $x $y $z]
 	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
 	set exit_when_lost 0
-	puts "Autopilot: Disengaged (45 seconds)"
+	puts "Autopilot: Disengaged ($timeout seconds)"
 	interact { 
 		timeout 1 {return}; 
 		-re {(.*)} {return};
 	}
 	interact {
-		timeout 45 { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
+		timeout $timeout { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
 		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
 		-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
 			set result [move [list $interact_out(1,string)] $fightmode]
@@ -934,7 +934,11 @@ while { 0 == 0 } {
                 puts "\n"
 		if { [expr ($vitality*100)/$vitality_max] < 80 || $mana < [expr $mana_max / 2]} { 
 			check_health
-			interact_loop
+			interact_loop 45
+			check_health
+		} else {
+			check_health
+			interact_loop 20
 			check_health
 		}
 	} else {
