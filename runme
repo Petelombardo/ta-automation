@@ -353,6 +353,33 @@ proc update_learned_travel { step lastcoordinates } {
 	}
 }
 
+
+proc follow { } {
+	set direction ""
+	set word ""
+	expect {
+		-re {group has just gone (?:to the)? ([a-z]).} {
+			puts "You went $expect_out(1,string)"
+			set word $expect_out(1,string)
+			if { $word == "northeast" } { set direction "ne" }
+			if { $word == "northwest" } { set direction "nw" }
+			if { $word == "north" } { set direction "n" }
+			if { $word == "southeast" } { set direction "se" }
+			if { $word == "southwest" } { set direction "sw" }
+			if { $word == "south" } { set direction "s" }
+			if { $word == "east" } { set direction "e" }
+			if { $word == "west" } { set direction "w" }
+			if { $word == "upward" } { set direction "u" }
+			if { $word == "downward" } { set direction "d" }
+		}
+		"You follow your group leader" {
+			update_coordinates $direction
+		}		
+		timeout { close }
+	}
+
+}
+
 proc move { journey {fasttrack 0} {to ""} } {
 	global location
 	global lastdestination
@@ -401,6 +428,14 @@ proc move { journey {fasttrack 0} {to ""} } {
 				} else {
 					return [list $direction]
 				}
+			}
+			"that is not an appropriate command" {
+                                if { $exit_when_lost == 1 } {
+                                        puts "Something went wrong with navigation."
+                                        close
+                                } else {
+                                        return [list $direction]
+                                }
 			}
 			"You cannot leave in the heat of battle" {
 				get_monsters
