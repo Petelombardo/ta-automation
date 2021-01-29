@@ -852,6 +852,7 @@ proc interact_loop { {timeout 30 } } {
 			resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 			home { move [get_optimal_route [list 0 0 0]] 1 }
 			monsters { get_monsters }
+			route { puts [get_route [list 0 0 0]] } 
 			exit { close }
                         -re {([a-z 0-9]+)[\r|\n]} {
                                 puts $interact_out(1,string)
