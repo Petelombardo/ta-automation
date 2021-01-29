@@ -815,32 +815,37 @@ proc interact_loop { {timeout 30 } } {
 		timeout 1 {return}; 
 		-re {(.*)} {return};
 	}
-	interact {
-		timeout $timeout { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
-		fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
-		-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
-			set result [move [list $interact_out(1,string)] $fightmode]
-			if { $fightmode == 1 } {
-				fight
+	set loopagain 1
+	while { $loopagain == 1 } {
+		set loopagain 0
+		interact {
+			timeout $timeout { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
+			fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
+			-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
+				set result [move [list $interact_out(1,string)] $fightmode]
+				if { $fightmode == 1 } {
+					fight
+				}
 			}
-		}
-		-re {^goto ([a-z ]*)[\r|\n]} { 
-			set dcoordinates [location_to_coordinates $interact_out(1,string)]
-			while { !($dcoordinates == [list $x $y $z]) } {
-				goto $interact_out(1,string) 
-				fight
+			-re {^goto ([a-z ]*)[\r|\n]} { 
+				set dcoordinates [location_to_coordinates $interact_out(1,string)]
+				while { !($dcoordinates == [list $x $y $z]) } {
+					goto $interact_out(1,string) 
+					fight
+				}
 			}
+			-re {timer ([0-9]+)[\r|\n]} { set timeout $interact_out(1,string); puts "Timer changed to $timeout."; set loopagain 1; return}
+		        -re {([a-z 0-9]+)[\r|\n]} {
+				puts $interact_out(1,string)
+				send -- "$interact_out(1,string)$CR"
+			}
+			fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
+			resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
+			home { move [get_optimal_route [list 0 0 0]] 1 }
+			monsters { get_monsters }
+			exit { close }
+			-re {([^a-z]+[a-z]*)} {}
 		}
-	        -re {([a-z 0-9]+)[\r|\n]} {
-			puts $interact_out(1,string)
-			send -- "$interact_out(1,string)$CR"
-		}
-		fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
-		resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
-		home { move [get_optimal_route [list 0 0 0]] 1 }
-		monsters { get_monsters }
-		exit { close }
-		-re {([^a-z]+[a-z]*)} {}
 	}
 	set exit_when_lost 1
 }
