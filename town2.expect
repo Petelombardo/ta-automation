@@ -8,7 +8,7 @@ proc location_to_coordinates { location } {
 	if { $location == "arena" } { return [list 0 6 0] }
 	if { $location == "tavern" } { return [list -4 2 0] }
 	if { $location == "inn" } { return [list -4 2 0] }
-	if { $location == "equipment shop" } { return list -4 4 0] }
+	if { $location == "equipment shop" } { return [list -4 4 0] }
 	if { $location == "armor shop" } { return [list 2 4 0] }
 }
 

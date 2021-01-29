@@ -195,6 +195,14 @@ proc whereami {} {
 	return $location
 }
 
+proc is_peaceful { location } {
+	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" || $location == "docks" || $location == "equipment shop" || $location == "weapons shop" } { 
+		return 1 
+	} else { 
+		return 0 
+	}
+}
+
 proc get_monsters {} {
         global monster;
         global nomonster;
@@ -208,7 +216,9 @@ proc get_monsters {} {
         expect {
 		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\.} {
                         set location $expect_out(1,string)
-			if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" || $location == "docks" || $location == "equipment shop" || $location == "weapons shop"} { set nomonster 1; return }
+			puts "Location: $location"
+			if { [is_peaceful $location] == 1 } { return }
+#if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" || $location == "docks" || $location == "equipment shop" || $location == "weapons shop"} { set nomonster 1; return }
 #                        set monster [list $expect_out(3,string)]
 			set monster $expect_out(3,string)
 			if { [info exists expect_out(4,string)] && ($expect_out(4,string) == "ss" || $expect_out(4,string) == "ssess")} { set suffix "ss"; set monster "$monster$suffix" }
@@ -407,7 +417,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				update_learned_travel $direction $lastcoordinates
 				set lastcoordinates [list $x $y $z]
-				if { !($location == "temple") && !($location == "tavern") && !($location == "guild hall") && !($location == "town vaults") && !($location == "magic shop") && $fasttrack == 0 } {
+				if { [is_peaceful $location] == 0 && $fasttrack == 0 } {
 	                                puts "There are monsters here!"
 	                                get_monsters
 	                                if { $nomonster == 0 && [expr $i +1] < $size } {
@@ -702,7 +712,8 @@ proc fight {} {
 	set round 0
 	set letsfight 1
 	source monsters.expect	
-	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { return }
+#	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" } { return }
+	if { [is_peaceful $location] == 1} { return }
 
 	set old_temple_heal_threshold $temple_heal_threshold
 	set old_self_heal_threshold $self_heal_threshold
@@ -827,7 +838,7 @@ proc interact_loop { {timeout 30 } } {
 					fight
 				}
 			}
-			-re {^goto ([a-z ]*)[\r|\n]} { 
+			-re {goto ([a-z ]*)[\r|\n]} { 
 				set dcoordinates [location_to_coordinates $interact_out(1,string)]
 				while { !($dcoordinates == [list $x $y $z]) } {
 					goto $interact_out(1,string) 
@@ -835,15 +846,15 @@ proc interact_loop { {timeout 30 } } {
 				}
 			}
 			-re {timer ([0-9]+)[\r|\n]} { set timeout $interact_out(1,string); puts "Timer changed to $timeout."; set loopagain 1; return}
-		        -re {([a-z 0-9]+)[\r|\n]} {
-				puts $interact_out(1,string)
-				send -- "$interact_out(1,string)$CR"
-			}
 			fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
 			resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 			home { move [get_optimal_route [list 0 0 0]] 1 }
 			monsters { get_monsters }
 			exit { close }
+                        -re {([a-z 0-9]+)[\r|\n]} {
+                                puts $interact_out(1,string)
+                                send -- "$interact_out(1,string)$CR"
+                        }
 			-re {([^a-z]+[a-z]*)} {}
 		}
 	}
