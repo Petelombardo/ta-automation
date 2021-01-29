@@ -196,7 +196,9 @@ proc whereami {} {
 }
 
 proc is_peaceful { location } {
+	global nomonster
 	if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" || $location == "docks" || $location == "equipment shop" || $location == "weapons shop" } { 
+		set nomonster 1
 		return 1 
 	} else { 
 		return 0 
