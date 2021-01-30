@@ -163,6 +163,7 @@ if { [info exists town] && $town == 2} {
         set attack_ogre 0
         set attack_minotaur 0
         set attack_griffon 0
+	set make_deposits false
 } else {
         source town1.expect
 }
