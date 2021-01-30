@@ -12,6 +12,8 @@ proc location_to_coordinates { location } {
 	if { $location == "minotaur" } { return [list -3 -3 -1] }
 	if { $location == "griffon" } { return [list -2 8 0] }
 	if { $location == "ogre mage" } { return [list 5 8 0] }
+	puts "$location not found."
+	close
 }
 
 proc get_route { to {from ""} } {
