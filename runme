@@ -988,11 +988,11 @@ while { 0 == 0 } {
                 puts "\n"
 		if { [expr ($vitality*100)/$vitality_max] < 80 || $mana < [expr $mana_max / 2]} { 
 			check_health
-			interact_loop 45
+			interact_loop 30
 			check_health
 		} else {
 			check_health
-			interact_loop 20
+			interact_loop 15
 			check_health
 		}
 	} else {
