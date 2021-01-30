@@ -160,10 +160,6 @@ proc reverse_route { directions } {
 
 if { [info exists town] && $town == 2} {
         source town2.expect
-        set attack_ogre 0
-        set attack_minotaur 0
-        set attack_griffon 0
-	set make_deposits false
 } else {
         source town1.expect
 }
@@ -221,8 +217,6 @@ proc get_monsters {} {
                         set location $expect_out(1,string)
 			puts "Location: $location"
 			if { [is_peaceful $location] == 1 } { return }
-#if { $location == "temple" || $location == "tavern" || $location == "guild hall" || $location == "town vaults" || $location == "magic shop" || $location == "inn" || $location == "docks" || $location == "equipment shop" || $location == "weapons shop"} { set nomonster 1; return }
-#                        set monster [list $expect_out(3,string)]
 			set monster $expect_out(3,string)
 			if { [info exists expect_out(4,string)] && ($expect_out(4,string) == "ss" || $expect_out(4,string) == "ssess")} { set suffix "ss"; set monster "$monster$suffix" }
                         set nomonster 0;
@@ -395,7 +389,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 	global exit_when_lost
 	set myjourney [list]
 
-	if { $journey == [list] } { return }
+	if { $journey == [list] } { puts "Empty route.  Not moving"; return }
 	set from [list $x $y $z]
 	set lastcoordinates $from	
 	
@@ -920,6 +914,12 @@ goto arena
 while { 0 == 0 } {
 	# Every round, we reload the config.  This allows us to change parameters on-the-fly without disconnecting.
 	source config.expect
+	if { [info exists town] && $town == 2} {
+	        set attack_ogre 0
+	        set attack_minotaur 0
+	        set attack_griffon 0
+	        set make_deposits false
+	}
 	source monsters.expect
 	check_health
 	# MINOTAUR
