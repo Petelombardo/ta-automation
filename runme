@@ -639,6 +639,7 @@ proc track_experience {} {
 
 
 proc track_money {} {
+	set deposit 0
 	global stats CR make_deposits location x y z
         if { [info exists stats("money")] } {
                 set begin [lindex $stats("money") 0]
@@ -663,6 +664,7 @@ proc track_money {} {
                 timeout { close }
        }
        if { [info exists begin] && !($begin == "") } {
+		set begin [expr $begin - $deposit]
                 set stats("money") [list $begin $gold]
                 set end $gold
         } else {
