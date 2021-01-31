@@ -32,6 +32,15 @@ if { $debug == "true" } {
 	set CR "\r\n"
 }
 
+proc secs_to_hm { secs } {
+        set hours 0
+        set minutes 0
+        set hours [expr $secs / 3600]
+        set secs [expr $secs % 3600]
+        set minutes [expr $secs / 60]
+        return [list $hours $minutes]
+}
+
 proc start_timer { secs } {
         puts "Starting timer for $secs seconds"
         set then [ clock seconds ]
@@ -621,35 +630,58 @@ proc track_experience {} {
 	set diff [expr $end - $begin]
 	if { $elapsed > 0 } {
 		set hourly [expr ($diff / $elapsed) * 3600]
-		puts "You are gaining $hourly exp/hr."
+		set result [secs_to_hm $elapsed]
+		puts "Runtime: [lindex $result 0] hours, [lindex $result 1] minutes"
+		puts "Experience rate: $hourly exp/hr."
 	}
+	puts "Experience gain: $diff"
 }
 
-proc deposit_money {} {
-	global location
-	global CR x y z
-	send -- "i$CR"
-	expect {
-		-re {carrying ([0-9]*) gold} {
-			set gold $expect_out(1,string)
-			puts "You are carrying $gold gold\n"
-			if { $gold > 150 } {
-				whereami
-				set returnlocation [list $x $y $z]
-				set deposit [ expr $gold - 60 ]
-				goto "town vaults"
-				send -- "de $deposit$CR"
-				move $returnlocation
-			} elseif { $gold == 0 } {
-				puts "No gold!  Disconnecting.\n"
-				close
-			}
-		}
-		timeout { close }
-	}
+
+proc track_money {} {
+	global stats CR make_deposits location x y z
+        if { [info exists stats("money")] } {
+                set begin [lindex $stats("money") 0]
+        }
+        send -- "i$CR"
+        expect {
+                -re {carrying ([0-9]*) gold} {
+                        set gold $expect_out(1,string)
+                        puts "You are carrying $gold gold\n"
+                        if { $gold > 150 && [info exists make_deposits] && $make_deposits == "true"} {
+                                whereami
+                                set returnlocation [list $x $y $z]
+                                set deposit [ expr $gold - 60 ]
+                                goto "town vaults"
+                                send -- "de $deposit$CR"
+                                move $returnlocation
+                        } elseif { $gold == 0 } {
+                                puts "No gold!  Disconnecting.\n"
+                                close
+                        }
+                }
+                timeout { close }
+       }
+       if { [info exists begin] && !($begin == "") } {
+                set stats("money") [list $begin $gold]
+                set end $gold
+        } else {
+                set stats("money") [list $gold $gold]
+                set end $gold
+        }
+        
+        set elapsed [stopwatch money]
+        set begin [lindex $stats("money") 0]
+        set end [lindex $stats("money") 1]
+        set diff [expr $end - $begin]
+        if { $elapsed > 0 } {
+                set hourly [expr ($diff / $elapsed) * 3600]
+                set result [secs_to_hm $elapsed]
+                puts "Income rate: $hourly gold/hr."
+        }
+        puts "Total Income: $diff"
 }
-				
-	
+
 
 proc get_potions {} {
 	global use_rowan
@@ -933,6 +965,7 @@ check_health
 puts "Checked initial health\n"
 interact_loop
 track_experience
+track_money
 goto arena
 
 # This is the main loop that runs
@@ -1009,8 +1042,8 @@ while { 0 == 0 } {
 	if { $vitality < $vitality_max || $mana < $mana_max } {
 		goto "north plaza"
 		track_experience
+		track_money
 #		send -- "ep$CR"
-		if { $make_deposits == "true" } { deposit_money }
                 puts "\n"
 		if { [expr ($vitality*100)/$vitality_max] < 80 || $mana < [expr $mana_max / 2]} { 
 			check_health
