@@ -81,6 +81,19 @@ proc timer { type sec } {
 	return 0
 }
 
+proc stopwatch { type } {
+	global universal_stopwatch
+	set now [clock seconds]
+	if {![info exists universal_stopwatch($type)]} {
+		set universal_stopwatch($type) $now
+		set then $now
+	} else {
+		set then $universal_stopwatch($type)
+	}
+	return [expr $now - $then]
+}
+
+
 proc connect {} {
 	global env
 	global spawn_id
@@ -584,6 +597,9 @@ proc get_healing {} {
 proc track_experience {} {
 	global stats
 	global CR
+	if { [info exists stats("experience")] } {
+		set begin [lindex $stats("experience") 0]
+	}
 	send -- "ep$CR"
 	set timeout 20
 	set experience ""
@@ -591,19 +607,20 @@ proc track_experience {} {
 		-re {Experience:( *)([0-9]*)} { set experience $expect_out(2,string) }
 		timeout { close }
 	}
-	if { !([info exists stats("experience")]) } {
-		if { [lindex $stats("experience") 0] == "" && !($experience == "")} {
-			set stats("experience") [list $experience]
-		}
+	if { [info exists begin] && !($begin == "") } {
+		set stats("experience") [list $begin $experience]
+		set end $experience
 	} else {
-		set newstats [list [lindex $stats("experience") 0] $experience]
-		set stats("experience") $newstats
+		set stats("experience") [list $experience $experience]
+		set end $experience
 	}
-	if { [timer experience 900] == 0 && [info exists stats("experience")] } {
-		set begin [lindex $stats("experience") 0]
-		set end [lindex $stats("experience") 1]
-		set diff [expr $end - $begin]
-		set hourly [expr $diff * 4]
+	
+	set elapsed [stopwatch experience]
+	set begin [lindex $stats("experience") 0]
+	set end [lindex $stats("experience") 1]
+	set diff [expr $end - $begin]
+	if { $elapsed > 0 } {
+		set hourly [expr ($diff / $elapsed) * 3600]
 		puts "You are gaining $hourly exp/hr."
 	}
 }
@@ -915,6 +932,7 @@ puts "Got max health\n"
 check_health
 puts "Checked initial health\n"
 interact_loop
+track_experience
 goto arena
 
 # This is the main loop that runs
