@@ -599,6 +599,13 @@ proc track_experience {} {
 		set newstats [list [lindex $stats("experience") 0] $experience]
 		set stats("experience") $newstats
 	}
+	if { [timer experience 900] == 0 && [info exists stats("experience")] } {
+		set begin [lindex $stats("experience") 0]
+		set end [lindex $stats("experience") 1]
+		set diff [expr $end - $begin]
+		set hourly [expr $diff * 4]
+		puts "You are gaining $hourly exp/hr."
+	}
 }
 
 proc deposit_money {} {
