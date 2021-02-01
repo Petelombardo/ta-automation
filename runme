@@ -629,7 +629,7 @@ proc track_experience {} {
 	set end [lindex $stats("experience") 1]
 	set diff [expr $end - $begin]
 	if { $elapsed > 0 } {
-		set hourly [expr ($diff / $elapsed) * 3600]
+		set hourly [expr round((double($diff) / double($elapsed)) * 3600)]
 		set result [secs_to_hm $elapsed]
 		puts "Runtime: [lindex $result 0] hours, [lindex $result 1] minutes"
 		puts "Experience rate: $hourly exp/hr."
@@ -677,7 +677,7 @@ proc track_money {} {
         set end [lindex $stats("money") 1]
         set diff [expr $end - $begin]
         if { $elapsed > 0 } {
-                set hourly [expr ($diff / $elapsed) * 3600]
+                set hourly [expr round((double($diff) / double($elapsed)) * 3600)]
                 set result [secs_to_hm $elapsed]
                 puts "Income rate: $hourly gold/hr."
         }
