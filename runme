@@ -10,6 +10,7 @@ set monster ""
 set mino_elapsed 0
 set mino_time 0
 set exit_when_lost 1
+set manual_mode 0
 if { !([info exists make_deposits]) } { set make_deposits true }
 if { !([info exists debug]) } { set debug false }
 if { !([info exists mino_interval]) } { set mino_interval 480 }
@@ -399,7 +400,7 @@ proc follow { } {
 }
 
 proc move { journey {fasttrack 0} {to ""} } {
-	global location
+	global location manual_mode
 	global lastdestination
 	global monster
 	global nomonster
@@ -409,7 +410,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 	global z
 	global learned_travel
 	global CR
-	global exit_when_lost
+	global exit_when_lost manual_mode
 	set myjourney [list]
 
 	if { $journey == [list] } { puts "Empty route.  Not moving"; return }
@@ -425,7 +426,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 		if { $direction == 0 } { puts "Invalid Direction (0).  Ignoring."; return 0 }
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
 		set step [expr $i + 1]
-		if { $exit_when_lost == 1 } {
+		if { $manual_mode == 0 } {
 			start_timer 1
 		}
 		send -- "$direction$CR"
@@ -487,7 +488,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 						puts "We made it to our final destination!"
 					}
 				}
-				if { $exit_when_lost == 1 } {
+				if { $manual_mode == 0 } {
 					start_timer 1
 				}
                         }
@@ -496,7 +497,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
-				if { $exit_when_lost == 1 } {
+				if { $manual_mode == 0 } {
 					start_timer 1
 				}
                                 update_learned_travel $direction $lastcoordinates
@@ -911,7 +912,7 @@ proc ring_gong {} {
 }
 
 proc interact_loop { {timeout 30 } } {
-	global learned_travel town CR
+	global learned_travel town CR manual_mode
 	global x y z exit_when_lost
 	set fightmode 0
 	set wayback [list $x $y $z]
@@ -929,10 +930,12 @@ proc interact_loop { {timeout 30 } } {
 			timeout $timeout { puts "Autopilot: Engaged"; move [get_optimal_route $wayback]; return; }
 			fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
 			-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
+				set manual_mode 1
 				set result [move [list $interact_out(1,string)] $fightmode]
 				if { $fightmode == 1 } {
 					fight
 				}
+				set manual_mode 0
 			}
 			-re {goto ([a-z ]*)[\r|\n]} { 
 				set dcoordinates [location_to_coordinates $interact_out(1,string)]
