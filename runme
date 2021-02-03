@@ -186,6 +186,7 @@ if { [info exists town] && $town == 2} {
         source town1.expect
 }
 
+
 proc whereami {} {
 	global location
 	global x
@@ -424,7 +425,9 @@ proc move { journey {fasttrack 0} {to ""} } {
 		if { $direction == 0 } { puts "Invalid Direction (0).  Ignoring."; return 0 }
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
 		set step [expr $i + 1]
-		start_timer 1
+		if { $exit_when_lost == 1 } {
+			start_timer 1
+		}
 		send -- "$direction$CR"
 		puts "$direction step $step of $size - route:$journey:"
 		expect { 
@@ -484,14 +487,18 @@ proc move { journey {fasttrack 0} {to ""} } {
 						puts "We made it to our final destination!"
 					}
 				}
-				start_timer 1
+				if { $exit_when_lost == 1 } {
+					start_timer 1
+				}
                         }
 			-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\.[\r|\n]} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
-				start_timer 1
+				if { $exit_when_lost == 1 } {
+					start_timer 1
+				}
                                 update_learned_travel $direction $lastcoordinates
                                 set lastcoordinates [list $x $y $z]
 			}
@@ -904,8 +911,7 @@ proc ring_gong {} {
 }
 
 proc interact_loop { {timeout 30 } } {
-	global learned_travel
-	global CR
+	global learned_travel town CR
 	global x y z exit_when_lost
 	set fightmode 0
 	set wayback [list $x $y $z]
@@ -940,8 +946,23 @@ proc interact_loop { {timeout 30 } } {
 			resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 			home { move [get_optimal_route [list 0 0 0]] 1 }
 			monsters { get_monsters }
-			route { puts [get_route [list 0 0 0]] } 
+			-re {route ?([a-z ]*)[\r|\n]} { 
+				if {![info exists interact_out(1,string)]} {
+					puts [get_route [list 0 0 0]] 
+				} else {
+					puts [get_optimal_route [location_to_coordinates $interact_out(1,string)]]
+				}
+			} 
 			exit { close }
+                        -re {town ([0-9]+)[\r|\n]} {
+                                if { !($town == $interact_out(1,string)) } {
+                                        set town $interact_out(1,string);
+                                        puts "Town changed to $town";
+                                        source town$town.expect;
+                                        unset learned_travel; 
+					whereami
+                                }
+                        }
                         -re {([a-z 0-9]+)[\r|\n]} {
                                 puts $interact_out(1,string)
                                 send -- "$interact_out(1,string)$CR"

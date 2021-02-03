@@ -12,6 +12,7 @@ proc location_to_coordinates { location } {
 	if { $location == "minotaur" } { return [list -3 -3 -1] }
 	if { $location == "griffon" } { return [list -2 8 0] }
 	if { $location == "ogre mage" } { return [list 5 8 0] }
+	if { $location == "tower" } { return [list -14 -37 0] }
 }
 
 proc get_route { to {from ""} } {
@@ -30,6 +31,7 @@ proc get_route { to {from ""} } {
 	set routes([list 0 1 -1]) [list n d]
 	set routes([list -2 8 0]) [list s sw nw n nw n nw ne e ne n n nw]	
 	set routes([list 5 8 0]) [list s sw se e e ne e ne ne n nw ne ne n nw nw n]
+	set routes([list -14 -37 0]) [list s sw sw s sw se sw sw nw w w sw s s sw sw se sw se se se se sw se se sw sw sw sw nw n nw w w sw sw se se s s se se sw sw sw w w s sw s e e se s]
 
 	if { !($from == [list 0 0 0]) && !($to == [list 0 0 0]) } { set to [list 0 0 0] }
 	# If we are heading from one place to another and we're not in town, go through town
