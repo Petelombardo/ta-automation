@@ -10,7 +10,7 @@ proc location_to_coordinates { location } {
 	if { $location == "inn" } { return [list -4 2 0] }
 	if { $location == "equipment shop" } { return [list -4 4 0] }
 	if { $location == "armor shop" } { return [list 2 4 0] }
-	if { $location == "ruby key" } { return [list 13 -3 -1]
+	if { $location == "ruby key" } { return [list 13 -3 -1] }
 }
 
 proc get_route { to {from ""} } {
