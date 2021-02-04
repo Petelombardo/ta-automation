@@ -11,6 +11,8 @@ set mino_elapsed 0
 set mino_time 0
 set exit_when_lost 1
 set manual_mode 0
+set return_control 0
+set interactive 0
 if { !([info exists make_deposits]) } { set make_deposits true }
 if { !([info exists debug]) } { set debug false }
 if { !([info exists mino_interval]) } { set mino_interval 480 }
@@ -43,7 +45,7 @@ proc secs_to_hm { secs } {
 }
 
 proc start_timer { secs } {
-        puts "Starting timer for $secs seconds"
+#        puts "Starting timer for $secs seconds"
         set then [ clock seconds ]
         set now $then
         set diff [expr $now - $then]
@@ -204,7 +206,7 @@ proc whereami {} {
 				set location $expect_out(4,string)
 			}
 		}
-		timeout { close }
+		timeout { puts "Timeout whereami"; close }
 	} 
 	set coordinates [location_to_coordinates $location]
 	if { [info exists coordinates] && !($coordinates == "") } {
@@ -257,7 +259,7 @@ proc get_monsters {} {
                         set nomonster 1;
                 }
 		-re {(?:[A-za-z0-9 ]*) (?:is|are) here\.} { set nomonster 1; puts "People found, but no monsters found."; return 0;}
-		timeout { close }
+		timeout { puts "Timeout get_monsters"; close }
         }
         puts "Monster:$monster; nomonster:$nomonster\n";
 	return $count
@@ -350,7 +352,7 @@ proc update_coordinates { direction } {
 
 proc update_learned_travel { step lastcoordinates } {
 	global x y z learned_travel
-	puts "Attempt to update travel.  Step: $step, Last coordinates $lastcoordinates"
+#	puts "Attempt to update travel.  Step: $step, Last coordinates $lastcoordinates"
 	if { [llength [get_route $lastcoordinates [list 0 0 0]]] > 0 } { set learned_travel($lastcoordinates) [get_route $lastcoordinates [list 0 0 0]]}
 	if { [llength [get_route [list $x $y $z] [list 0 0 0]]] > 0 } { set learned_travel([list $x $y $z]) [get_route [list $x $y $z] [list 0 0 0]] }
 	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || [llength [get_route $lastcoordinates [list 0 0 0]]] > 0)} {
@@ -364,7 +366,7 @@ proc update_learned_travel { step lastcoordinates } {
 		if { !($lastcoordinates == [list $x $y $z]) && !([list $x $y $z] == [list 0 0 0])} {
 			lappend newroute $step
 			set learned_travel([list $x $y $z]) $newroute
-			puts "Learned New Route ($x,$y,$z) = $newroute"
+#			puts "Learned New Route ($x,$y,$z) = $newroute"
 		}
 	}
 	if { [info exists learned_travel([list $x $y $z])] } {
@@ -394,10 +396,32 @@ proc follow { } {
 		"You follow your group leader" {
 			update_coordinates $direction
 		}		
-		timeout { close }
+		timeout { puts "Timeout follow"; close }
 	}
 
 }
+
+proc interact_check { secs } {
+	global manual_mode return_control interactive
+	if { $interactive == 1 } {
+		puts "Input On"
+		interact {
+			timeout $secs { return }
+			-re {stop[\r|\n]} { 
+				if { $interactive == 1 } {
+					set return_control 1; 
+					return 
+				}
+			}
+			-re {([^a-zA-Z]+[a-z]*)} {}
+			-re {[a-z]*[\r|\n]} {}
+		}
+		puts "Input Off"
+	} else {
+		after [expr $secs * 1000]
+	}
+}
+
 
 proc move { journey {fasttrack 0} {to ""} } {
 	global location manual_mode
@@ -410,7 +434,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 	global z
 	global learned_travel
 	global CR
-	global exit_when_lost manual_mode
+	global exit_when_lost return_control
 	set myjourney [list]
 
 	if { $journey == [list] } { puts "Empty route.  Not moving"; return }
@@ -421,13 +445,13 @@ proc move { journey {fasttrack 0} {to ""} } {
 	set i 0
 	set track_travel 0
 
-	while { $i < $size } {
+	while { $i < $size && $return_control == 0} {
 		set direction [lindex $journey $i]
 		if { $direction == 0 } { puts "Invalid Direction (0).  Ignoring."; return 0 }
 		# We assume that if we take a step toward a direction we haven't yet explored, that it's outbound
 		set step [expr $i + 1]
 		if { $manual_mode == 0 } {
-			start_timer 1
+			interact_check 1
 		}
 		send -- "$direction$CR"
 		puts "$direction step $step of $size - route:$journey:"
@@ -489,7 +513,8 @@ proc move { journey {fasttrack 0} {to ""} } {
 					}
 				}
 				if { $manual_mode == 0 } {
-					start_timer 1
+					after 500
+#					start_timer 1
 				}
                         }
 			-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\.[\r|\n]} {
@@ -498,12 +523,13 @@ proc move { journey {fasttrack 0} {to ""} } {
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				if { $manual_mode == 0 } {
-					start_timer 1
+					after 500
+#					start_timer 1
 				}
                                 update_learned_travel $direction $lastcoordinates
                                 set lastcoordinates [list $x $y $z]
 			}
-			timeout { close }
+			timeout { puts "Timeout proc move"; close }
 		}
 		incr i 1
 	}
@@ -513,9 +539,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 
 
 proc goto { destinationname } {
-	global x
-	global y
-	global z
+	global x y z return_control manual_mode
 	set to_coordinates [location_to_coordinates $destinationname]
 	if { $to_coordinates == [list $x $y $z] } { puts "You're already here ($destinationname)."; return }
 	set route [get_optimal_route $to_coordinates]
@@ -537,7 +561,7 @@ proc get_max_health {} {
 			set mana_max $expect_out(1,string)
 			set vitality_max $expect_out(2,string)
 		}
-		timeout { close }
+		timeout { puts "Timeout proc get_max_health"; close }
 	}
 	puts "max vit: $vitality_max; max mana: $mana_max\n";
 }
@@ -554,7 +578,7 @@ proc get_health {} {
 			set vitality $expect_out(2,string)
 			set status $expect_out(3,string)
 		}
-		timeout { close }
+		timeout { puts "Timeout proc get_health"; close }
 	} 
 	puts "V: $vitality; M: $mana; S: $status\n";
 }
@@ -572,7 +596,7 @@ proc get_drink {} {
                 "brings you" {}
                 "that is not an appropriate" { close }
 		"you cannot" { close }
-		timeout { close }
+		timeout { puts "Timeout get_drink"; close }
         }
 }
 
@@ -589,7 +613,7 @@ proc get_meal {} {
                 "brings you" {}
                 "that is not an appropriate" { close }
                 "you cannot" { close }
-		timeout { close }
+		timeout { puts "Timeout get_meal"; close }
         }
 }
 
@@ -607,7 +631,7 @@ proc get_healing {} {
 		"heal all" {}
 		"that is not an appropriate" { close }
 		"you cannot" { close }
-		timeout { close }
+		timeout { puts "Timeout get_healing"; close }
 	}
 }
 
@@ -622,7 +646,7 @@ proc track_experience {} {
 	set experience ""
 	expect {
 		-re {Experience:( *)([0-9]*)} { set experience $expect_out(2,string) }
-		timeout { close }
+		timeout { puts "Timeout track_experience"; close }
 	}
 	if { [info exists begin] && !($begin == "") } {
 		set stats("experience") [list $begin $experience]
@@ -669,7 +693,7 @@ proc track_money {} {
                                 close
                         }
                 }
-                timeout { close }
+                timeout { puts "Timeout track_money"; close }
        }
        if { [info exists begin] && !($begin == "") } {
 		set begin [expr $begin - $deposit]
@@ -778,7 +802,7 @@ proc check_attack_response {} {
 		"dodged your" {
 			set nomonster 0;
 		}
-		timeout { close }
+		timeout { puts "Timeout attack_response"; close }
         }
 }
 
@@ -805,8 +829,8 @@ proc attack { monster } {
 }
 
 proc fight {} {
-	global monster nomonster monster_damage vitality_max vitality self_heal_threshold temple_heal_threshold location CR
-	set round_timer 16
+	global monster nomonster monster_damage vitality_max vitality self_heal_threshold temple_heal_threshold location CR manual_mode return_control
+	set round_timer 15
 	set round 0
 	set letsfight 1
 	source monsters.expect	
@@ -832,21 +856,22 @@ proc fight {} {
 	}
 	puts "Temple heal threshold: $temple_heal_threshold"
 
-        while { $nomonster == 0 } {
+        while { $nomonster == 0 && $return_control == 0} {
 		if { [check_health] } { return 1 }
-		set timeout [timer fight $round_timer]
-		puts $timeout
-		if { $timeout == 0 } { set timeout $round_timer }
+		set timeout 1
+#		puts $timeout
+#		if { $timeout == 0 } { set timeout $round_timer }
 		incr round 1
 		set monstername [lindex $monster 0]
                 attack $monstername
 		expect { 
-			-re {The ([a-z0-9 ]*) damage!([\r|\n])} { check_health; set timeout [timer fight $round_timer]; exp_continue } 
+			-re {The ([a-z0-9 ]*) damage!([\r|\n])} { check_health; exp_continue } 
 			"You\'re thirsty." { check_health; }
 			"You\'re hungry." { check_health; }
 			"falls to the ground" { puts "He's dead.  Let's move on." }
 			"Sorry, you don't see" { puts "Looks like he died." }
 		}
+		interact_check 15
                 get_monsters
         }
 	set temple_heal_threshold $old_temple_heal_threshold
@@ -855,14 +880,14 @@ proc fight {} {
 
 proc wander_to { to } {
 		# This procedure will go to a location and fight creatures on the way
-		global location
+		global location manual_mode return_control
 		global CR
 		set continue 1
 		set destination $to
 		global x y z
 		set firstrun 1
 		if { !([list $x $y $z] == [location_to_coordinates $to]) } {
-			while { !([location_to_coordinates $to] == [list $x $y $z]) } {
+			while { !([location_to_coordinates $to] == [list $x $y $z]) && $return_control==0} {
 				set returnstatus [goto $to]
 				if { $returnstatus == 1 } { fight }
 			}
@@ -899,7 +924,7 @@ proc ring_gong {} {
 				puts "Uh oh, something went wrong.  Better disconnect."
 				close
 			}
-			timeout { close }
+			timeout { puts "Timeout ring_gong"; close }
 		}
 	}
 	start_timer 5
@@ -912,9 +937,10 @@ proc ring_gong {} {
 }
 
 proc interact_loop { {timeout 30 } } {
-	global learned_travel town CR manual_mode
+	global learned_travel town CR manual_mode interactive return_control
 	global x y z exit_when_lost
 	set fightmode 0
+	set interactive 1
 	set wayback [list $x $y $z]
 	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
 	set exit_when_lost 0
@@ -931,25 +957,28 @@ proc interact_loop { {timeout 30 } } {
 			fmode { if { $fightmode == 0 } { set fightmode 1; puts "Fightmode: On" } else { set fightmode 0; puts "Fightmode: Off" } }
 			-re {(ne|nw|se|sw|e|w|n|s|u|d)[\r|\n]} {
 				set manual_mode 1
+				set return_control 0
 				set result [move [list $interact_out(1,string)] $fightmode]
 				if { $fightmode == 1 } {
 					fight
 				}
 				set manual_mode 0
 			}
-			-re {goto ([a-z ]*)[\r|\n]} { 
+			-re {goto ([a-z ]*)[\r|\n]} {
+				set return_control 0
 				set dcoordinates [location_to_coordinates $interact_out(1,string)]
-				while { !($dcoordinates == [list $x $y $z]) } {
+				while { !($dcoordinates == [list $x $y $z]) && $return_control==0} {
 					goto $interact_out(1,string) 
 					fight
 				}
 			}
 			-re {timer ([0-9]+)[\r|\n]} { set timeout $interact_out(1,string); puts "Timer changed to $timeout."; set loopagain 1; return}
-			fight { puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
-			resume { puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
-			home { move [get_optimal_route [list 0 0 0]] 1 }
-			monsters { get_monsters }
+			fight { set return_control 0; puts "Autopilot temporarily engaged"; fight; puts "Autopilot disengaged" }
+			resume { set return_control 0; puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
+			home { set return_control 0; move [get_optimal_route [list 0 0 0]] 1 }
+			monsters { set return_control 0; get_monsters }
 			-re {route ?([a-z ]*)[\r|\n]} { 
+				set return_control 0;
 				if {![info exists interact_out(1,string)]} {
 					puts [get_route [list 0 0 0]] 
 				} else {
@@ -959,6 +988,7 @@ proc interact_loop { {timeout 30 } } {
 			exit { close }
                         -re {town ([0-9]+)[\r|\n]} {
                                 if { !($town == $interact_out(1,string)) } {
+					set return_control 0
                                         set town $interact_out(1,string);
                                         puts "Town changed to $town";
                                         source town$town.expect;
@@ -967,12 +997,14 @@ proc interact_loop { {timeout 30 } } {
                                 }
                         }
                         -re {([a-z 0-9]+)[\r|\n]} {
+				set return_control 0
                                 puts $interact_out(1,string)
                                 send -- "$interact_out(1,string)$CR"
                         }
 			-re {([^a-z]+[a-z]*)} {}
 		}
 	}
+	set interactive 0
 	set exit_when_lost 1
 }
 
