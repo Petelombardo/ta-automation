@@ -201,7 +201,7 @@ proc whereami {} {
 	set count 0
 	send "$CR"
 	expect {
-		-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\.} {
+		-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\.} {
 			if { !($location == [list $x $y $z]) } {
 				set location $expect_out(4,string)
 			}
@@ -239,7 +239,7 @@ proc get_monsters {} {
 	set count 0
 	set timeout 10
         expect {
-		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\.} {
+		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the|an) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\.} {
                         set location $expect_out(1,string)
 			puts "Location: $location"
 			if { [is_peaceful $location] == 1 } { return }
@@ -492,7 +492,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\.} {
+			-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\.} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
@@ -517,7 +517,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 #					start_timer 1
 				}
                         }
-			-re {You(\'re| are) (in|inside|outside|on) (a|the) ([a-z ]*)\.[\r|\n]} {
+			-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\.[\r|\n]} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
 				update_coordinates $direction
