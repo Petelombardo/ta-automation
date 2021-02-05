@@ -11,6 +11,8 @@ proc location_to_coordinates { location } {
 	if { $location == "equipment shop" } { return [list -4 4 0] }
 	if { $location == "armor shop" } { return [list 2 4 0] }
 	if { $location == "ruby key" } { return [list 13 -3 -1] }
+	if { $location == "ruby door" } {return [list 6 -7 -1] }
+	if { $location == "hydra" } {return [list 10 5 -2]}
 }
 
 proc get_route { to {from ""} } {
@@ -28,6 +30,8 @@ proc get_route { to {from ""} } {
 	set routes([list -4 4 0]) [list nw nw n n w w]
 	set routes([list 2 4 0]) [list nw nw n n e e e e]
 	set routes([list 13 -3 -1]) [list nw nw n n sw d e ne se se se ne e se s e ne se se ne se se se]
+	set routes([list 6 -7 -1]) [list nw nw n n sw d se sw s se se sw se se ne ne se se se e s]
+	set routes([list 10 5 -2]) [list nw nw n n sw d se sw s se se sw se se ne ne se se se e s d s d ne ne e u se se e ne n nw ne ne n nw w n ne nw nw nw n]
 
 	if { !($from == [list 0 0 0]) && !($to == [list 0 0 0]) } { set to [list 0 0 0] }
 	# If we are heading from one place to another and we're not in town, go through town

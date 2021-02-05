@@ -969,7 +969,9 @@ proc interact_loop { {timeout 30 } } {
 				set dcoordinates [location_to_coordinates $interact_out(1,string)]
 				while { !($dcoordinates == [list $x $y $z]) && $return_control==0} {
 					goto $interact_out(1,string) 
-					fight
+					if { $fightmode == 1} {
+						fight
+					}
 				}
 			}
 			-re {timer ([0-9]+)[\r|\n]} { set timeout $interact_out(1,string); puts "Timer changed to $timeout."; set loopagain 1; return}
