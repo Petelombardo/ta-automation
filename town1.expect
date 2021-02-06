@@ -14,6 +14,7 @@ proc location_to_coordinates { location } {
 	if { $location == "ogre mage" } { return [list 5 8 0] }
 	if { $location == "tower" } { return [list -14 -37 0] }
 	if { $location == "ancient temple" } { return [list 22 -8 0] }
+	return [list]
 }
 
 proc get_route { to {from ""} } {
