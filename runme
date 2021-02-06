@@ -245,6 +245,7 @@ proc get_monsters {} {
 			puts "Location: $location"
 			if { [is_peaceful $location] == 1 } { return }
 			set monster $expect_out(3,string)
+			regsub -all {men$} $monster man monster
 			if { [info exists expect_out(4,string)] && ($expect_out(4,string) == "ss" || $expect_out(4,string) == "ssess")} { set suffix "ss"; set monster "$monster$suffix" }
                         set nomonster 0;
                         puts "Found $expect_out(2,string) $monster!"

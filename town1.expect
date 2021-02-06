@@ -14,6 +14,7 @@ proc location_to_coordinates { location } {
 	if { $location == "ogre mage" } { return [list 5 8 0] }
 	if { $location == "tower" } { return [list -14 -37 0] }
 	if { $location == "ancient temple" } { return [list 22 -8 0] }
+	if { $location == "sorceress" } { return [list -10 -46 3] }
 	return [list]
 }
 
@@ -35,7 +36,7 @@ proc get_route { to {from ""} } {
 	set routes([list 5 8 0]) [list s sw se e e ne e ne ne n nw ne ne n nw nw n]
 	set routes([list -14 -37 0]) [list s sw sw s sw se sw sw nw w w sw s s sw sw se sw se se se se sw se se sw sw sw sw nw n nw w w sw sw se se s s se se sw sw sw w w s sw s e e se s]
 	set routes([list 22 -8 0]) [list s sw sw s sw se sw sw nw w w sw s s sw sw se sw se se se se sw se ne e e e ne n ne e e se s sw se se ne ne n ne ne ne ne se se e ne ne e se se e ne ne ne n n n n n]
-
+	set routes([list -10 -46 3]) [list s sw sw s sw se sw sw nw w w sw s s sw sw se sw se se se se sw se se sw sw sw sw nw n nw w w sw sw se se s s se se sw sw sw w w s sw s e e se s s s s s s s s w w u u e e e s s s s w w w n n e u e e s s s e e e n n n]
 	if { !($from == [list 0 0 0]) && !($to == [list 0 0 0]) } { set to [list 0 0 0] }
 	# If we are heading from one place to another and we're not in town, go through town
 	if { $to == [list 0 0 0] && [info exists learned_travel($from)] } {
