@@ -13,6 +13,7 @@ set exit_when_lost 1
 set manual_mode 0
 set return_control 0
 set interactive 0
+set fightmode 1
 if { !([info exists make_deposits]) } { set make_deposits true }
 if { !([info exists debug]) } { set debug false }
 if { !([info exists mino_interval]) } { set mino_interval 480 }
@@ -424,17 +425,7 @@ proc interact_check { secs } {
 
 
 proc move { journey {fasttrack 0} {to ""} } {
-	global location manual_mode
-	global lastdestination
-	global monster
-	global nomonster
-	global attacks_per_round
-	global x
-	global y
-	global z
-	global learned_travel
-	global CR
-	global exit_when_lost return_control
+	global location manual_mode lastdestination monster nomonster attacks_per_round x y z learned_travel CR exit_when_lost return_control fightmode
 	set myjourney [list]
 
 	if { $journey == [list] } { puts "Empty route.  Not moving"; return }
@@ -507,7 +498,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				update_learned_travel $direction $lastcoordinates
 				set lastcoordinates [list $x $y $z]
-				if { [is_peaceful $location] == 0 && $fasttrack == 0 } {
+				if { [is_peaceful $location] == 0 && $fasttrack == 0 && $fightmode == 1} {
 	                                puts "There are monsters here!"
 	                                get_monsters
 	                                if { $nomonster == 0 && [expr $i +1] < $size } {
@@ -946,7 +937,7 @@ proc ring_gong {} {
 }
 
 proc interact_loop { {timeout 30 } } {
-	global learned_travel town CR manual_mode interactive return_control
+	global learned_travel town CR manual_mode interactive return_control fightmode
 	global x y z exit_when_lost
 	set fightmode 0
 	set interactive 1
@@ -1020,6 +1011,7 @@ proc interact_loop { {timeout 30 } } {
 		}
 	}
 	set interactive 0
+	set fightmode 1
 	set exit_when_lost 1
 }
 
