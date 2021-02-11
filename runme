@@ -33,7 +33,7 @@ set z 999
 if { $debug == "true" } {
 	set CR "\n"
 } else {
-	set CR "\r\n"
+	set CR "\n"
 }
 
 proc secs_to_hm { secs } {
@@ -115,7 +115,8 @@ proc connect {} {
 	global server
 	global port
 	global CR
-	spawn telnet $server $port
+#	spawn telnet $server $port
+	spawn -noecho stdbuf -i0 nc -I 1 -O 1 -C -t $server $port
 	set count 0
 	set timeout 15
 	expect {
@@ -130,7 +131,10 @@ proc connect {} {
                 "identify" { send -h "$username$CR"; exp_continue }
                 "access code" { send -h "$password$CR"; exp_continue }
                 "Login" { send -h "$username$CR"; exp_continue }
+		"Username:" { send -h "$username$CR"; exp_continue }
+		"Password:" { send -h "$password$CR"; exp_continue }
                 "assword" { send -h "$password$CR"; exp_continue }
+		"Arena5.6d-Gold" { send "a$CR"; }
                 "Press ENTER to continue)" { send -h "$CR"; exp_continue }
                 "ontinue" { send -h "$CR"; exp_continue }
                 "Multi-User Games" { send -h "G$CR"; exp_continue }
@@ -240,7 +244,7 @@ proc get_monsters {} {
 	set count 0
 	set timeout 10
         expect {
-		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the|an) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\.} {
+		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the|an) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\..*floor\.} {
                         set location $expect_out(1,string)
 			puts "Location: $location"
 			if { [is_peaceful $location] == 1 } { return }
@@ -358,7 +362,7 @@ proc update_learned_travel { step lastcoordinates } {
 	if { [llength [get_route $lastcoordinates [list 0 0 0]]] > 0 } { set learned_travel($lastcoordinates) [get_route $lastcoordinates [list 0 0 0]]}
 	if { [llength [get_route [list $x $y $z] [list 0 0 0]]] > 0 } { set learned_travel([list $x $y $z]) [get_route [list $x $y $z] [list 0 0 0]] }
 	if { !([info exists learned_travel([list $x $y $z])]) && ([info exists learned_travel($lastcoordinates)] || [llength [get_route $lastcoordinates [list 0 0 0]]] > 0)} {
-		puts "Inside if.  Let's see what we find."
+		#puts "Inside if.  Let's see what we find."
 		if { [ info exists learned_travel($lastcoordinates) ] } {
 			set newroute $learned_travel($lastcoordinates)
 		} elseif { !([get_route $lastcoordinates [list 0 0 0]] == [list]) } {
@@ -492,9 +496,10 @@ proc move { journey {fasttrack 0} {to ""} } {
 				send -- "$direction$CR"
 				exp_continue
 			}
-			-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\.} {
+			-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\..*There (is|are) (a|an|two|three|four) ([a-z][a-z]*)s?[ |,]? (?:[a-z, ]*)here\..*floor\.} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
+				update
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				update_learned_travel $direction $lastcoordinates
@@ -517,9 +522,10 @@ proc move { journey {fasttrack 0} {to ""} } {
 #					start_timer 1
 				}
                         }
-			-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\.[\r|\n]} {
+			-re {You(\'re| are) (in|inside|outside|on) (a|the|an) ([a-z ]*)\.[\r|\n].*floor\.} {
 				set location $expect_out(4,string)
 				set newcoordinates [location_to_coordinates $expect_out(4,string)]
+				update
 				update_coordinates $direction
 				if { !($newcoordinates == [list])} { set x [lindex $newcoordinates 0]; set y [lindex $newcoordinates 1]; set z [lindex $newcoordinates 2] }
 				if { $manual_mode == 0 } {
@@ -533,7 +539,7 @@ proc move { journey {fasttrack 0} {to ""} } {
 		}
 		incr i 1
 	}
-	puts "($x,$y,$z)"
+	#puts "($x,$y,$z)"
 	return 0
 }
 
