@@ -116,7 +116,7 @@ proc connect {} {
 	global port
 	global CR
 #	spawn telnet $server $port
-	spawn -noecho stdbuf -i0 nc -I 1 -O 1 -C -t $server $port
+	spawn -noecho stdbuf -i0 nc -C -t $server $port
 	set count 0
 	set timeout 15
 	expect {
@@ -1009,7 +1009,7 @@ proc interact_loop { {timeout 30 } } {
 					whereami
                                 }
                         }
-                        -re {([a-z 0-9]+)[\r|\n]} {
+                        -re {([a-z 0-9]*)[\r|\n]} {
 				set return_control 0
                                 puts $interact_out(1,string)
                                 send -- "$interact_out(1,string)$CR"
