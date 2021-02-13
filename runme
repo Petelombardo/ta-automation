@@ -453,7 +453,8 @@ proc move { journey {fasttrack 0} {to ""} } {
 		puts "$direction step $step of $size - route:$journey:"
 		expect { 
 			"rest a while" {
-				start_timer 2
+#				start_timer 2
+				interact_check 2
 				send -- "$direction$CR"
 				exp_continue
 			}
@@ -990,6 +991,7 @@ proc interact_loop { {timeout 30 } } {
 			resume { set return_control 0; puts "Autopilot: Engaged"; move [reverse_route $wayback]; return; }
 			home { set return_control 0; move [get_optimal_route [list 0 0 0]] 1 }
 			monsters { set return_control 0; get_monsters }
+			stats { track_experience; track_money }
 			-re {route ?([a-z ]*)[\r|\n]} { 
 				set return_control 0;
 				if {![info exists interact_out(1,string)]} {
