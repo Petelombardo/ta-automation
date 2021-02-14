@@ -430,7 +430,7 @@ proc interact_check { secs } {
 
 
 proc move { journey {fasttrack 0} {to ""} } {
-	global location manual_mode lastdestination monster nomonster attacks_per_round x y z learned_travel CR exit_when_lost return_control fightmode
+	global location manual_mode lastdestination monster nomonster attacks_per_round x y z learned_travel CR exit_when_lost return_control fightmode interactive
 	set myjourney [list]
 
 	if { $journey == [list] } { puts "Empty route.  Not moving"; return }
@@ -453,10 +453,15 @@ proc move { journey {fasttrack 0} {to ""} } {
 		puts "$direction step $step of $size - route:$journey:"
 		expect { 
 			"rest a while" {
-#				start_timer 2
-				interact_check 2
-				send -- "$direction$CR"
-				exp_continue
+				if { $interactive == 1 } {
+					interact_check 2
+				} else {
+					start_timer 2
+				}
+				if {$return_control == 0} {
+					send -- "$direction$CR"
+					exp_continue
+				}
 			}
 			"you trip and fall" {
 				start_timer 2
@@ -838,7 +843,7 @@ proc attack { monster } {
 
 proc fight {} {
 	global monster nomonster monster_damage vitality_max vitality self_heal_threshold temple_heal_threshold location CR manual_mode return_control
-	set round_timer 15
+	set round_timer 16
 	set round 0
 	set letsfight 1
 	source monsters.expect	
@@ -879,7 +884,7 @@ proc fight {} {
 			"falls to the ground" { puts "He's dead.  Let's move on." }
 			"Sorry, you don't see" { puts "Looks like he died." }
 		}
-		interact_check 15
+		interact_check $round_timer
                 get_monsters
         }
 	set temple_heal_threshold $old_temple_heal_threshold
