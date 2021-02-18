@@ -22,6 +22,8 @@ if { !([info exists ogre_interval]) } { set ogre_interval 480 }
 if { !([info exists attack_minotaur]) } { set attack_minotaur 0 }
 if { !([info exists attack_griffon]) } { set attack_griffon 0 }
 if { !([info exists attack_ogre]) } { set attack_ogre 0 }
+set heal_hit_ratio [list 0 0]
+set hurt_hit_ratio [list 0 0]
 set lastdestination ""
 array set universal_timer {}
 array set universal_timer_elapsed {}
@@ -611,6 +613,7 @@ proc get_drink {} {
 		"you cannot" { close }
 		timeout { puts "Timeout get_drink"; close }
         }
+	start_timer 6
 }
 
 proc get_meal {} {
@@ -628,6 +631,7 @@ proc get_meal {} {
                 "you cannot" { close }
 		timeout { puts "Timeout get_meal"; close }
         }
+	start_timer 6
 }
 
 proc get_healing {} {
@@ -649,13 +653,14 @@ proc get_healing {} {
 }
 
 proc track_experience {} {
-	global stats
-	global CR
+	global stats heal_hit_ratio hurt_hit_ratio CR
 	if { [info exists stats("experience")] } {
 		set begin [lindex $stats("experience") 0]
 	}
 	send -- "ep$CR"
 	set timeout 20
+	set healratio 0
+	set hurtratio 0
 	set experience ""
 	expect {
 		-re {Experience:( *)([0-9]*)} { set experience $expect_out(2,string) }
@@ -677,9 +682,24 @@ proc track_experience {} {
 		set hourly [expr round((double($diff) / double($elapsed)) * 3600)]
 		set result [secs_to_hm $elapsed]
 		puts "Runtime: [lindex $result 0] hours, [lindex $result 1] minutes"
-		puts "Experience rate: $hourly exp/hr."
+		puts ""
+		puts "EXPERIENCE"
+		puts "    Gain Rate: $hourly exp/hr."
 	}
-	puts "Experience gain: $diff"
+	puts "    Experience gain: $diff"
+	set heal_hits [expr double([lindex $heal_hit_ratio 0])]
+	set heal_misses [expr double([lindex $heal_hit_ratio 1])]
+	set hurt_hits [expr double([lindex $hurt_hit_ratio 0])]
+	set hurt_misses [expr double([lindex $hurt_hit_ratio 1])]
+	if { $heal_hits > 0 } {
+		set healratio [expr round(100*($heal_hits/($heal_hits+$heal_misses)))]
+	}
+	if { $hurt_hits > 0 } {
+		set hurtratio [expr round(100*($hurt_hits/($hurt_hits+$hurt_misses)))]
+	}
+	puts "SPELLCASTING"
+	puts "    $healratio% successful heal casts"
+	puts "    $hurtratio% successful hurt casts"
 }
 
 
@@ -768,10 +788,8 @@ proc check_health {} {
 		incr count 1
 		if { $status == "Thirsty" } {
 			get_drink
-			start_timer 5
 		} elseif { $status == "Hungry" } {
 			get_meal
-			start_timer 5
 		} elseif { $vitality < $temple_heal_threshold } {
 			get_healing
 			start_timer 5
@@ -821,19 +839,33 @@ proc check_attack_response {} {
 
 
 proc attack { monster } {
-	global nomonster
-	global spell
-	global attacks_per_round
-	global healtype
-	global username
-	global CR
+	global nomonster spell attacks_per_round healtype username CR heal_hit_ratio hurt_hit_ratio heal_spell hurt_spell
 	if { $healtype == "heal" } {
 		set attackname $username
 	} else {
 		set attackname $monster
 	}
         if { "$spell" != "" } {
+		if { $spell == $heal_spell } {
+			set hr $heal_hit_ratio
+		} else {
+			set hr $hurt_hit_ratio
+		}
                 send -- "c $spell $attackname$CR";
+		set hit [lindex $hr 0]
+		set miss [lindex $hr 1]
+		expect {
+			"spell was negated" {incr hit 1}
+			"discharged the spell" {incr hit 1}
+			"confuse the key syllables" {incr miss 1}
+			"too mentally exhausted" {}
+			"mana is too low" {}
+		}
+		if { $spell == $heal_spell } {
+			set heal_hit_ratio [list $hit $miss]
+		} else {
+			set hurt_hit_ratio [list $hit $miss]
+		}
         }
 	for { set i 0} { $i < $attacks_per_round } {incr i 1} {
 		send -- "a $monster$CR";
@@ -940,7 +972,7 @@ proc ring_gong {} {
 			timeout { puts "Timeout ring_gong"; close }
 		}
 	}
-	start_timer 5
+	start_timer 6
 	fight
         if { [timer potions 600] == 0 && ( $use_rowan == 1 || $use_hyssop == 1 ) } {
                 get_potions
