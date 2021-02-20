@@ -246,13 +246,14 @@ proc get_monsters {} {
 	set count 0
 	set timeout 10
         expect {
-		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the|an) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess*)?,? [, a-z]*here\..*floor\.} {
+		-re {You(?:\'re| are) (?:in|inside|outside|on) (?:a|the|an) ([a-z  ]*)\..*\n?There (?:is|are) (a|an|two|three|four) ([a-z]+[a-rt-z]+)(s|ss|ssess|ses*)?,? [, a-z]*here\..*floor\.} {
                         set location $expect_out(1,string)
 			puts "Location: $location"
 			if { [is_peaceful $location] == 1 } { return }
 			set monster $expect_out(3,string)
 			regsub -all {men$} $monster man monster
 			if { [info exists expect_out(4,string)] && ($expect_out(4,string) == "ss" || $expect_out(4,string) == "ssess")} { set suffix "ss"; set monster "$monster$suffix" }
+			if { $monster == "cyclope" } { set monster "cyclops" }
                         set nomonster 0;
                         puts "Found $expect_out(2,string) $monster!"
 			if { $expect_out(2,string) == "a" || $expect_out(2,string) == "an" } { 
@@ -698,8 +699,8 @@ proc track_experience {} {
 		set hurtratio [expr round(100*($hurt_hits/($hurt_hits+$hurt_misses)))]
 	}
 	puts "SPELLCASTING"
-	puts "    $healratio% successful heal casts"
-	puts "    $hurtratio% successful hurt casts"
+	puts "    $healratio% successful heal casts (out of [expr round($heal_hits+$heal_misses)])"
+	puts "    $hurtratio% successful hurt casts (out of [expr round($hurt_hits+$hurt_misses)])"
 }
 
 
