@@ -1159,7 +1159,7 @@ while { 0 == 0 } {
                 puts "\n"
 		check_health
 		if { !($heal_spell=="") } {
-			set interact_timer [expr round(((double($mana_max)-double($mana))/double($mana_max)*30))]
+			set interact_timer [expr round(((double($mana_max)-double($mana))/double($mana_max)*60))]
 		} elseif { [expr ($vitality*100)/$vitality_max] < 80] } {
 			set interact_timer 30
 		} else {
