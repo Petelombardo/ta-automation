@@ -1157,15 +1157,16 @@ while { 0 == 0 } {
 		track_money
 #		send -- "ep$CR"
                 puts "\n"
-		if { [expr ($vitality*100)/$vitality_max] < 80 || $mana < [expr $mana_max / 2]} { 
-			check_health
-			interact_loop 30
-			check_health
+		if { !($heal_spell=="") } {
+			set interact_timer [expr round(((double($mana_max)-double($mana))/double($mana_max)*30))]
+		} elseif { [expr ($vitality*100)/$vitality_max] < 80] } {
+			set interact_timer 30
 		} else {
-			check_health
-			interact_loop 15
-			check_health
+			set interact_timer 15
 		}
+		check_health
+		interact_loop $interact_timer
+		check_health
 	} else {
 		start_timer 5
 	}
