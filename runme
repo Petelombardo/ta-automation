@@ -988,6 +988,7 @@ proc interact_loop { {timeout 30 } } {
 	set fightmode 0
 	set interactive 1
 	set wayback [list $x $y $z]
+	if { $timeout < 0 } { set timeout 0; }
 	if { [list $x $y $z] == [list 0 0 0] } { set track 1 } else { set track 0 }
 	set exit_when_lost 0
 	puts "Autopilot: Disengaged ($timeout seconds)"
@@ -1159,7 +1160,13 @@ while { 0 == 0 } {
                 puts "\n"
 		check_health
 		if { !($heal_spell=="") } {
-			set interact_timer [expr round(((double($mana_max)-double($mana))/double($mana_max)*60))]
+			set mana_percent_free [expr round(100*(double($mana)/double($mana_max)))]
+			set mana_used [expr $mana_max - $mana]
+			if { $mana_percent_free < 50 } {
+				set interact_timer [expr 15 + (2*$mana_used)]
+			} else {
+				set interact_timer [expr (2*$mana_used)]
+			}
 		} elseif { [expr ($vitality*100)/$vitality_max] < 80] } {
 			set interact_timer 30
 		} else {
