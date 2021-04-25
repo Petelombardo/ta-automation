@@ -969,6 +969,7 @@ proc ring_gong {} {
 	global CR
 	if { $nomonster == 1 } {
 		track_experience
+		track_money
 		send -- "ri g$CR";
 		expect {
 			-re {An? ([a-z]*) [a-z ]*(?:enters|appears)} {
