@@ -1,0 +1,75 @@
+#!/usr/bin/expect
+
+#Intellect:    13
+#Knowledge:    17
+#Physique:     14
+#Stamina:      9
+#Agility:      11
+#Charisma:     17
+#Mana:         2 / 2
+#Vitality:     21 / 21
+#20 22 17 18 18 16 28
+#20 21 18 22 18 13 29
+spawn nc -t -C 10.25.1.195 23
+
+
+proc reroll {} {
+	set intellect 0
+	set knowledge 0
+	set physique 0
+	set stamina 0
+	set agility 0
+	set charisma 0
+	set vitality 0
+	set count 0
+	set imax 0
+	set kmax 0
+	set pmax 0
+	set amax 0
+	set cmax 0
+	set vmax 0
+	set smax 0
+	set maxtotal 0
+	set total 0
+	set maxstats [list]
+	while { $intellect < 20 || $knowledge < 22 || $physique < 17 || $stamina < 18 || $agility < 18 || $charisma < 15 || $vitality < 28 } {
+		incr count 1
+		send "reroll\n"
+		set match_max 8000
+		expect {
+			-re {Intellect: *([0-9]*).*Knowledge: *([0-9]*).*Physique: *([0-9]*).*Stamina: *([0-9]*).*Agility: *([0-9]*).*Charisma: *([0-9]*).*Vitality: *([0-9]*).*} {
+				set intellect $expect_out(1,string);
+				set knowledge $expect_out(2,string);
+				set physique $expect_out(3,string);
+				set stamina $expect_out(4,string);
+				set agility $expect_out(5,string);
+				set charisma $expect_out(6,string);
+				set vitality $expect_out(7,string);
+				set total [expr $intellect + $knowledge + $physique + $stamina + $agility + $charisma + $vitality]
+				if { $total > $maxtotal } { 
+					set maxtotal $total 
+					set maxstats [list $intellect $knowledge $physique $stamina $agility $charisma $vitality]
+				}
+				if {$vitality > $vmax} { set vmax $vitality;}
+				if {$charisma > $cmax} {set cmax $charisma}
+				if {$agility > $amax} {set amax $agility}
+				if {$stamina > $smax} {set smax $stamina}
+				if {$physique > $pmax} {set pmax $physique}
+				if {$knowledge > $kmax} {set kmax $knowledge}
+				if {$intellect > $imax} {set imax $intellect}
+				puts "Intellect($imax): $intellect, Knowledge($kmax): $knowledge, Physique($pmax): $physique, Stamina($smax): $stamina, Agility($amax): $agility, Charisma($cmax): $charisma, Vitality($vmax): $vitality"
+				puts $maxstats
+			}
+		}
+		puts $count
+	}
+	close
+}	
+
+
+interact {
+	resume { reroll }
+	-re {([a-z ]*)[\r|\n]} {
+		send "$interact_out(1,string)\n"
+	}
+}
