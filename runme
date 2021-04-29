@@ -986,6 +986,7 @@ proc ring_gong {} {
 				puts "Uh oh, something went wrong.  Better disconnect."
 				close
 			}
+			"You just rang the great gong" { puts "Odd.  Should have found a monster first." }
 			timeout { puts "Timeout ring_gong"; close }
 		}
 	}
