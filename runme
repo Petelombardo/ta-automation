@@ -1183,7 +1183,7 @@ while { 0 == 0 } {
 			} else {
 				set interact_timer [expr (2*$mana_used)]
 			}
-		} elseif { [expr ($vitality*100)/$vitality_max] < 80] } {
+		} elseif { [expr ($vitality*100)/$vitality_max] < 80 } {
 			set interact_timer 30
 		} else {
 			set interact_timer 15

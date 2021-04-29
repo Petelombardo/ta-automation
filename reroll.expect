@@ -11,7 +11,17 @@
 #20 22 17 18 18 16 28
 #20 21 18 22 18 13 29
 spawn nc -t -C 10.25.1.195 23
-
+set maxstats [list]
+set imin 30
+set kmin 30
+set pmin 30
+set amin 30
+set cmin 30
+set vmin 30
+set smin 30
+set maxtotal 30
+set pass 1
+set tolerance 2
 
 proc reroll {} {
 	set intellect 0
@@ -29,10 +39,23 @@ proc reroll {} {
 	set cmax 0
 	set vmax 0
 	set smax 0
-	set maxtotal 0
 	set total 0
-	set maxstats [list]
-	while { $intellect < 20 || $knowledge < 22 || $physique < 17 || $stamina < 18 || $agility < 18 || $charisma < 15 || $vitality < 28 } {
+	global maxstats maxcount imin kmin pmin amin cmin vmin smin maxtotal pass tolerance
+	if { !($maxstats == [list]) } {
+		set statsearch $maxstats
+		puts "Overriding minimum stats with maxstats $maxstats"
+		set imin [lindex $maxstats 0]
+		set kmin [lindex $maxstats 1]
+		set pmin [lindex $maxstats 2]
+		set amin [lindex $maxstats 3]
+		set cmin [lindex $maxstats 4]
+		set vmin [lindex $maxstats 5]
+		set smin [lindex $maxstats 6]
+		set pass 2
+		puts "Beginning 2nd Pass"
+		after 10
+	} 
+	while { $count < $maxcount && ($intellect < $imin || $knowledge < $kmin || $physique < $pmin || $stamina < $smin || $agility < $amin || $charisma < $cmin || $vitality < $vmin) } {
 		incr count 1
 		send "reroll\n"
 		set match_max 8000
@@ -45,11 +68,12 @@ proc reroll {} {
 				set agility $expect_out(5,string);
 				set charisma $expect_out(6,string);
 				set vitality $expect_out(7,string);
-				set total [expr $intellect + $knowledge + $physique + $stamina + $agility + $charisma + $vitality]
-				if { $total > $maxtotal } { 
+				set total [expr 3*($intellect + $knowledge) + 2*($physique + $stamina + $agility + $vitality) + $charisma]
+				if { $total > $maxtotal && $pass == 1 } { 
 					set maxtotal $total 
-					set maxstats [list $intellect $knowledge $physique $stamina $agility $charisma $vitality]
+					set maxstats [list $intellect $knowledge $physique $agility $charisma $vitality $stamina]
 				}
+				if { ($count >  1000) && $maxstats == [list $imax $kmax $pmax $amax $cmax $vmax $smax] } { set count [expr $maxcount -1] }		
 				if {$vitality > $vmax} { set vmax $vitality;}
 				if {$charisma > $cmax} {set cmax $charisma}
 				if {$agility > $amax} {set amax $agility}
@@ -58,17 +82,36 @@ proc reroll {} {
 				if {$knowledge > $kmax} {set kmax $knowledge}
 				if {$intellect > $imax} {set imax $intellect}
 				puts "Intellect($imax): $intellect, Knowledge($kmax): $knowledge, Physique($pmax): $physique, Stamina($smax): $stamina, Agility($amax): $agility, Charisma($cmax): $charisma, Vitality($vmax): $vitality"
-				puts $maxstats
+				puts "Top found:   $maxstats"
+				if { [info exists statsearch] } {
+					puts "Looking for: $statsearch"
+				}
+				if { $total >= [expr $maxtotal - $tolerance ] && $pass == 2 } {
+					puts "Found our match!"
+					puts "$intellect $knowledge $physique $agility $charisma $vitality $stamina"
+					break
+					close
+				}
 			}
 		}
 		puts $count
 	}
-	close
 }	
 
 
 interact {
-	resume { reroll }
+	resume { 
+		set maxcount 50000
+		reroll
+		puts "Best we can do:  $maxstats"
+		set pass 2
+		after 5000
+		puts "Get ready... let's go!" 
+		after 5000
+		set maxcount 1000000
+		reroll
+		close
+	}
 	-re {([a-z ]*)[\r|\n]} {
 		send "$interact_out(1,string)\n"
 	}
