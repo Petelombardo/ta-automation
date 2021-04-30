@@ -849,8 +849,8 @@ proc check_attack_response {} {
 proc attack { monster } {
 	global nomonster spell attacks_per_round healtype username CR heal_hit_ratio hurt_hit_ratio heal_spell hurt_spell stats
 	set damage 0;
-	if { $healtype == "heal" } {
-		set attackname $username
+	if { $healtype == "heal" && $spell==$heal_spell} {
+			set attackname $username
 	} else {
 		set attackname $monster
 	}
